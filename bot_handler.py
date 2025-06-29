@@ -124,25 +124,23 @@ def update_offer_status_for_game(account: Account, game_id: int):
     except Exception as e:
         logging.exception(f"[LOT_MANAGER] Ошибка обновления статуса лотов для game_id {game_id}.")
 
-def deactivate_all_lots(account: Account):
+def _force_deactivate_all_lots(account: Account):
     """
-    Принудительно деактивирует все лоты, связанные с играми в БД.
+    Находит все лоты из БД и принудительно деактивирует их.
     """
-    logging.info("[LOT_DEACTIVATOR] Запущена принудительная деактивация всех лотов.")
+    logging.warning("[FORCE_DEACTIVATE] ЗАПУСК ПРИНУДИТЕЛЬНОЙ ДЕАКТИВАЦИИ ВСЕХ ЛОТОВ.")
     all_offer_ids = set()
     try:
-        # Собираем ID всех лотов из всех игр в базе
-        games_with_ids = db_handler.db_query("SELECT funpay_offer_ids FROM games WHERE funpay_offer_ids IS NOT NULL", fetch="all")
+        games_with_ids = db_handler.db_query("SELECT funpay_offer_ids FROM games WHERE funpay_offer_ids IS NOT NULL",
+                                             fetch="all")
         for (ids_str,) in games_with_ids:
             if ids_str:
                 all_offer_ids.update([int(i.strip()) for i in ids_str.split(',') if i.strip().isdigit()])
 
         if not all_offer_ids:
-            logging.info("[LOT_DEACTIVATOR] Лоты для деактивации не найдены.")
             send_telegram_notification("ℹ️ Не найдено лотов для деактивации.")
             return
 
-        logging.info(f"[LOT_DEACTIVATOR] Найдено {len(all_offer_ids)} лотов для отключения: {all_offer_ids}")
         deactivated_count = 0
         for offer_id in all_offer_ids:
             try:
@@ -150,21 +148,16 @@ def deactivate_all_lots(account: Account):
                 if fields.active:
                     fields.active = False
                     account.save_lot(fields)
-                    logging.info(f"[LOT_DEACTIVATOR] Лот {offer_id} успешно деактивирован.")
+                    logging.info(f"[FORCE_DEACTIVATE] Лот {offer_id} успешно деактивирован.")
                     deactivated_count += 1
-                    time.sleep(3) # Задержка между запросами
+                    time.sleep(3)
             except Exception as e:
-                logging.error(f"[LOT_DEACTIVATOR] Не удалось отключить лот {offer_id}. Ошибка: {e}")
+                logging.error(f"[FORCE_DEACTIVATE] Не удалось отключить лот {offer_id}: {e}")
 
-        success_message = f"✅ Успешно деактивировано {deactivated_count} из {len(all_offer_ids)} лотов."
-        logging.info(f"[LOT_DEACTIVATOR] {success_message}")
-        send_telegram_notification(success_message)
+        send_telegram_notification(f"✅ Принудительная деактивация завершена. Отключено: {deactivated_count} лот(ов).")
 
     except Exception as e:
-        error_message = f"Критическая ошибка при деактивации лотов: {e}"
-        logging.exception(f"[LOT_DEACTIVATOR] {error_message}")
-        send_telegram_alert(error_message)
-
+        send_telegram_alert(f"Критическая ошибка при принудительной деактивации лотов: {e}")
 
 def expired_rentals_checker(account: Account):
     """Фоновый процесс проверки статусов."""
@@ -173,6 +166,9 @@ def expired_rentals_checker(account: Account):
     game_check_index = 0
     while True:
         try:
+            if state_manager.force_deactivate_all_lots_requested:
+                _force_deactivate_all_lots(account)
+                state_manager.force_deactivate_all_lots_requested = False  # Сбрасываем флаг
             # <<< ИСПРАВЛЕНИЕ: Убрана ошибочная проверка state_manager.deactivate_all_lots_requested >>>
             if not state_manager.is_bot_enabled:
                 time.sleep(30)
