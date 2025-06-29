@@ -33,12 +33,14 @@ class UIManager:
         self.history_tree = None
         self.accounts_tree = None
 
+        self.lots_listbox = None
+        self.lot_id_entry = None
+
         self._create_widgets()
         self._create_menu()  # Восстанавливаем создание меню
 
         # Привязка событий
-        self.game_var.trace_add("write",
-                                lambda *_: self.update_account_menu(self.app_actions.games, self.app_actions.accounts))
+        self.game_var.trace_add("write", self.app_actions.on_game_selection_change)
         self.search_rentals_var.trace_add("write", lambda *_: self.update_rentals_table(self.app_actions.rentals))
         self.search_history_var.trace_add("write", lambda *_: self.update_history_table(self.app_actions.history))
 
@@ -211,16 +213,45 @@ class UIManager:
         return tab
 
     def _create_manage_tab(self, parent):
-        """Создает вкладку управления играми и аккаунтами."""
+        """Создает вкладку управления играми, лотами и аккаунтами."""
         tab = ttk.Frame(parent)
 
-        games_frame = ttk.LabelFrame(tab, text="Игры", padding=10)
-        games_frame.pack(fill=tk.X, padx=10, pady=10)
-        ttk.Button(games_frame, text="➕ Добавить игру", command=self.app_actions.add_game).pack(side=tk.LEFT,
-                                                                                                padx=5)
-        ttk.Button(games_frame, text="➖ Удалить игру", command=self.app_actions.remove_game).pack(
-            side=tk.LEFT, padx=5)
+        # --- Блок управления Играми и Лотами ---
+        games_lots_frame = ttk.LabelFrame(tab, text="Игры и Лоты", padding=10)
+        games_lots_frame.pack(fill=tk.X, padx=10, pady=10)
 
+        # Левая часть: Игры
+        games_frame = ttk.Frame(games_lots_frame)
+        games_frame.pack(side=tk.LEFT, fill=tk.Y, padx=(0, 10))
+        ttk.Label(games_frame, text="Действия с играми:").pack(anchor='w')
+        ttk.Button(games_frame, text="➕ Добавить игру", command=self.app_actions.add_game).pack(fill=tk.X, pady=2)
+        ttk.Button(games_frame, text="➖ Удалить игру", command=self.app_actions.remove_game).pack(fill=tk.X, pady=2)
+
+        # <<< ИЗМЕНЕНИЕ: Правая часть: Лоты для выбранной игры >>>
+        lots_frame = ttk.Frame(games_lots_frame)
+        lots_frame.pack(side=tk.LEFT, expand=True, fill=tk.BOTH)
+
+        ttk.Label(lots_frame, text="ID лотов для выбранной игры:").pack(anchor='w')
+
+        list_frame = ttk.Frame(lots_frame)
+        list_frame.pack(expand=True, fill=tk.BOTH, pady=2)
+        self.lots_listbox = tk.Listbox(list_frame, height=4, exportselection=False)
+        self.lots_listbox.pack(side=tk.LEFT, expand=True, fill=tk.BOTH)
+        lots_scrollbar = ttk.Scrollbar(list_frame, orient=tk.VERTICAL, command=self.lots_listbox.yview)
+        lots_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        self.lots_listbox.config(yscrollcommand=lots_scrollbar.set)
+
+        add_lot_frame = ttk.Frame(lots_frame)
+        add_lot_frame.pack(fill=tk.X, pady=(5, 0))
+        self.lot_id_entry = ttk.Entry(add_lot_frame)
+        self.lot_id_entry.pack(side=tk.LEFT, expand=True, fill=tk.X)
+        ttk.Button(add_lot_frame, text="➕ Добавить", command=self.app_actions.add_lot_to_game).pack(side=tk.LEFT,
+                                                                                                    padx=(5, 0))
+        ttk.Button(add_lot_frame, text="➖ Удалить выбранный", command=self.app_actions.remove_lot_from_game).pack(
+            side=tk.LEFT, padx=(5, 0))
+        # <<< КОНЕЦ ИЗМЕНЕНИЯ >>>
+
+        # --- Блок управления Аккаунтами ---
         accounts_frame = ttk.LabelFrame(tab, text="Аккаунты", padding=10)
         accounts_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
         accounts_columns = ("Игра", "Логин", "Пароль", "Статус", "Арендатор")
@@ -230,14 +261,12 @@ class UIManager:
         scrollbar = ttk.Scrollbar(accounts_frame, orient=tk.VERTICAL, command=self.accounts_tree.yview)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         self.accounts_tree.configure(yscrollcommand=scrollbar.set)
-
         acc_buttons_frame = ttk.Frame(tab)
         acc_buttons_frame.pack(fill=tk.X, padx=10, pady=(0, 5))
         ttk.Button(acc_buttons_frame, text="➕ Добавить аккаунт", command=self.app_actions.add_account).pack(
             side=tk.LEFT, expand=True, fill=tk.X, padx=(0, 5))
         ttk.Button(acc_buttons_frame, text="➖ Удалить аккаунт", command=self.app_actions.remove_account).pack(
             side=tk.LEFT, expand=True, fill=tk.X)
-
         return tab
 
     # --- Методы обновления виджетов ---
@@ -338,8 +367,12 @@ class UIManager:
         tk.Entry(editor_window, textvariable=info_var).pack(fill=tk.X, padx=10)
 
         def save_changes():
-            db_handler.db_query("UPDATE rentals SET client_name = ?, info = ? WHERE id = ?",
-                                (name_var.get().strip(), info_var.get().strip(), rental_data['id']))
+            # Вызываем метод из RentalApp для сохранения данных
+            self.app_actions.update_rental_details(
+                rental_data['id'],
+                name_var.get().strip(),
+                info_var.get().strip()
+            )
             editor_window.destroy()
             on_save_callback()
 
