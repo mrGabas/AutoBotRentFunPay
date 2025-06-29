@@ -1,0 +1,225 @@
+# bot_handler.py
+import logging
+import re
+import time
+import threading
+from FunPayAPI.account import Account
+from FunPayAPI.updater.runner import Runner
+from FunPayAPI.common.enums import EventTypes, SubCategoryTypes
+from config import RENTAL_KEYWORDS, USE_EXPIRATION_GRACE_PERIOD, EXPIRATION_GRACE_PERIOD_MINUTES
+import db_handler
+from telegram_notifier import send_telegram_notification, send_telegram_alert
+import localization
+
+# Глобальная переменная для поочередной проверки игр
+game_check_index = 0
+
+
+def sync_games_with_funpay_offers(account: Account):
+    """
+    Автоматически сопоставляет игры из БД с лотами FunPay по ключевым словам.
+    Запускается один раз при старте бота, после чего выполняет первичную полную проверку статусов лотов.
+    """
+    logging.info("[SYNC] Запуск синхронизации игр с лотами FunPay.")
+    try:
+        db_games = db_handler.db_query("SELECT id, name FROM games", fetch="all")
+        if not db_games:
+            logging.warning("[SYNC] В базе данных нет игр. Синхронизация невозможна.")
+            return
+
+        user_profile = account.get_user(account.id)
+        if not user_profile:
+            logging.error("[SYNC] Не удалось получить профиль пользователя для синхронизации лотов.")
+            return
+        all_offers = user_profile.get_lots()
+
+        if not all_offers:
+            logging.warning("[SYNC] Не удалось получить лоты с FunPay или на аккаунте нет лотов.")
+            return
+
+        logging.info(f"[SYNC] Найдено {len(all_offers)} лотов на аккаунте. Начинаю анализ.")
+        game_to_ids = {game_id: [] for game_id, name in db_games}
+
+        rental_pattern = re.compile(r'(?:\b\d+\s*(?:час|часа|часов|ч|д|дней|день|day|days)\b|\b(?:аренда|rent)\b)',
+                                    re.IGNORECASE)
+
+        for offer in all_offers:
+            if not offer.description or not rental_pattern.search(offer.description):
+                continue
+
+            if not (offer.subcategory and offer.subcategory.category):
+                continue
+
+            funpay_category_name = offer.subcategory.category.name.lower()
+
+            # ИСПРАВЛЕНИЕ: Проверка теперь работает в обе стороны.
+            for db_game_id, db_game_name in db_games:
+                db_name_lower = db_game_name.lower()
+                if (db_name_lower in funpay_category_name) or (funpay_category_name in db_name_lower):
+                    game_to_ids[db_game_id].append(str(offer.id))
+                    break
+
+        for game_id, found_ids in game_to_ids.items():
+            if found_ids:
+                ids_str = ",".join(sorted(list(set(found_ids))))
+                db_handler.set_game_offer_ids(game_id, ids_str)
+
+        logging.info("[SYNC] Автоматическая синхронизация ID лотов завершена.")
+
+        logging.info("[SYNC_CHECK] Запуск первичной проверки статусов всех лотов.")
+        all_game_ids_in_db = [game[0] for game in db_games]
+        for game_id in all_game_ids_in_db:
+            update_offer_status_for_game(account, game_id)
+            time.sleep(3)
+        logging.info("[SYNC_CHECK] Первичная проверка статусов лотов завершена.")
+
+    except Exception as e:
+        logging.exception(f"[SYNC] Ошибка во время синхронизации игр с лотами.")
+
+
+def update_offer_status_for_game(account: Account, game_id: int):
+    """Обновляет статус ВСЕХ лотов, привязанных к одной игре, на основе наличия свободных аккаунтов."""
+    if not game_id:
+        return
+    try:
+        game_data = db_handler.db_query("""
+                                        SELECT g.name,
+                                               g.funpay_offer_ids,
+                                               (SELECT COUNT(*)
+                                                FROM accounts a
+                                                WHERE a.game_id = g.id AND a.rented_by IS NULL) as free_accounts
+                                        FROM games g
+                                        WHERE g.id = ?
+                                        """, (game_id,), fetch="one")
+
+        if not game_data:
+            logging.warning(f"[OFFER_MANAGER] Не найдена игра с game_id: {game_id}.")
+            return
+
+        game_name, offer_ids_str, free_accounts = game_data
+
+        if not offer_ids_str:
+            return
+
+        offer_ids = {int(i.strip()) for i in offer_ids_str.split(',') if i.strip().isdigit()}
+        logging.info(f"[OFFER_MANAGER] Проверка для '{game_name}'. Свободно: {free_accounts}. Лоты: {offer_ids}")
+
+        for offer_id in offer_ids:
+            try:
+                fields = account.get_lot_fields(offer_id)
+                is_active = fields.active
+
+                if free_accounts > 0 and not is_active:
+                    logging.info(f"[OFFER_MANAGER] Активация лота {offer_id} для '{game_name}'.")
+                    fields.active = True
+                    account.save_lot(fields)
+                    send_telegram_notification(f"✅ Лот {offer_id} для '{game_name}' АКТИВИРОВАН.")
+                    time.sleep(3)
+                elif free_accounts == 0 and is_active:
+                    logging.info(f"[OFFER_MANAGER] Деактивация лота {offer_id} для '{game_name}'.")
+                    fields.active = False
+                    account.save_lot(fields)
+                    send_telegram_notification(f"⛔️ Лот {offer_id} для '{game_name}' ДЕАКТИВИРОВАН.")
+                    time.sleep(3)
+            except Exception as e:
+                logging.error(
+                    f"[OFFER_MANAGER] Не удалось обработать лот {offer_id} для игры '{game_name}'. Ошибка: {e}")
+
+    except Exception as e:
+        logging.exception(f"[OFFER_MANAGER] Ошибка при обновлении статуса лотов для game_id {game_id}.")
+
+
+def expired_rentals_checker(account: Account):
+    """
+    Фоновый процесс, который:
+    1. Проверяет и обрабатывает истекшие аренды.
+    2. Поочередно проверяет по одной игре для синхронизации статусов лотов (для отлова ручных изменений).
+    """
+    global game_check_index
+    logging.info("[SYNC_CHECKER] Запущен объединенный проверщик статусов.")
+    while True:
+        try:
+            freed_game_ids = db_handler.check_and_process_expired_rentals()
+            if freed_game_ids:
+                logging.info(f"[SYNC_CHECKER] Освобождены аккаунты для игр (game_ids): {freed_game_ids}.")
+                for game_id in freed_game_ids:
+                    if USE_EXPIRATION_GRACE_PERIOD:
+                        delay = EXPIRATION_GRACE_PERIOD_MINUTES * 60
+                        logging.info(
+                            f"[SYNC_CHECKER] Установлена пауза {EXPIRATION_GRACE_PERIOD_MINUTES} мин. для game_id {game_id}.")
+                        threading.Timer(delay, update_offer_status_for_game, args=[account, game_id]).start()
+                    else:
+                        update_offer_status_for_game(account, game_id)
+
+            all_games = db_handler.db_query("SELECT id FROM games", fetch="all")
+            if all_games:
+                if game_check_index >= len(all_games):
+                    game_check_index = 0
+
+                game_to_check_id = all_games[game_check_index][0]
+
+                if game_to_check_id not in freed_game_ids:
+                    update_offer_status_for_game(account, game_to_check_id)
+
+                game_check_index += 1
+
+        except Exception as e:
+            logging.exception(f"Ошибка в процессе фоновой синхронизации статусов.")
+
+        time.sleep(60)
+
+
+def funpay_bot_listener(account, update_queue):
+    """Основной обработчик событий FunPay."""
+    runner = Runner(account)
+    logging.info("FunPay обработчик событий запущен.")
+    while True:
+        try:
+            for event in runner.listen():
+                if event.type == EventTypes.NEW_ORDER:
+                    order = event.order
+                    logging.info(f"[BOT] Обнаружен новый заказ #{order.id} от {order.buyer_username}.")
+                    description_lower = order.description.lower()
+
+                    all_games_in_db = db_handler.get_all_game_names()
+                    detected_game_name = next((game for game in all_games_in_db if game.lower() in description_lower),
+                                              None)
+                    if not detected_game_name and order.subcategory and order.subcategory.category:
+                        detected_game_name = order.subcategory.category.name
+
+                    if not detected_game_name:
+                        send_telegram_alert(f"Не удалось определить ИГРУ для заказа `#{order.id}`.")
+                        continue
+
+                    match = re.search(r'(\d+)\s*(час|часа|часов|ч|д|дней|день|day|days)', description_lower)
+                    if not match:
+                        send_telegram_alert(f"Не удалось определить СРОК для заказа `#{order.id}`.")
+                        continue
+
+                    time_value = int(match.group(1))
+                    time_unit = match.group(2)
+                    total_minutes = (time_value * 1440) if time_unit in ['д', 'дней', 'день', 'day', 'days'] else (
+                                time_value * 60)
+                    total_minutes *= order.amount
+
+                    rental_data = db_handler.rent_account(detected_game_name, order.buyer_username, total_minutes,
+                                                          order.chat_id)
+
+                    if rental_data:
+                        login, password, game_id = rental_data
+                        lang = 'ru'
+                        response_text = localization.get_text('RENTAL_SUCCESS', lang).format(
+                            game_name=detected_game_name, login=login, password=password,
+                            total_hours=round(total_minutes / 60, 1))
+                        account.send_message(order.chat_id, response_text, chat_name=order.buyer_username)
+                        update_offer_status_for_game(account, game_id)
+                    else:
+                        lang = 'ru'
+                        response_text = localization.get_text('NO_ACCOUNTS_AVAILABLE_USER', lang)
+                        account.send_message(order.chat_id, response_text, chat_name=order.buyer_username)
+                        send_telegram_alert(
+                            f"НЕТ СВОБОДНЫХ АККАУНТОВ для '{detected_game_name}' по заказу `#{order.id}`.")
+        except Exception as e:
+            logging.exception(f"[BOT_LISTENER] Критическая ошибка в главном цикле.")
+            send_telegram_alert(f"Критическая ошибка в FunPay Listener:\n\n{e}")
+        time.sleep(15)
