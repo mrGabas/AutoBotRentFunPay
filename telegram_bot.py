@@ -6,8 +6,9 @@ from telegram.error import TelegramError
 
 import db_handler
 import config
+import state_manager  # <-- Импортируем наш переключатель
 from utils import format_timedelta
-from datetime import datetime, timedelta
+from datetime import datetime
 
 # --- Глобальные переменные ---
 BOT_INSTANCE = None
@@ -17,7 +18,6 @@ UPDATER_INSTANCE = None
 # --- Основные функции ---
 
 def start_bot():
-    """Инициализирует и запускает Telegram-бота."""
     global BOT_INSTANCE, UPDATER_INSTANCE
     if not config.TELEGRAM_BOT_TOKEN:
         logging.warning("[TG_BOT] Токен Telegram-бота не указан. Бот не будет запущен.")
@@ -25,51 +25,41 @@ def start_bot():
 
     try:
         BOT_INSTANCE = Bot(token=config.TELEGRAM_BOT_TOKEN)
-
-        # <<< ИСПРАВЛЕНИЕ: Используем правильное имя переменной из config.py >>>
         if not config.TELEGRAM_ADMIN_CHAT_ID:
-            logging.error(
-                "[TG_BOT] TELEGRAM_ADMIN_CHAT_ID не указан в конфиге! Бот не может работать без администратора.")
+            logging.error("[TG_BOT] TELEGRAM_ADMIN_CHAT_ID не указан. Бот не может работать.")
             return
-        admin_id = int(config.TELEGRAM_ADMIN_CHAT_ID)
-        # <<< КОНЕЦ ИСПРАВЛЕНИЯ >>>
 
         UPDATER_INSTANCE = Updater(bot=BOT_INSTANCE, use_context=True)
         dp = UPDATER_INSTANCE.dispatcher
 
-        # Регистрация обработчиков команд
+        # <<< ИЗМЕНЕНИЕ: Добавляем новые команды >>>
         dp.add_handler(CommandHandler("start", start_command))
         dp.add_handler(CommandHandler("stats", stats_command))
         dp.add_handler(CommandHandler("rentals", rentals_command))
         dp.add_handler(CommandHandler("games", games_command))
+        dp.add_handler(CommandHandler("enable", enable_bot_command))
+        dp.add_handler(CommandHandler("disable", disable_bot_command))
+        dp.add_handler(CommandHandler("status", status_command))
+        # <<< КОНЕЦ ИЗМЕНЕНИЯ >>>
 
-        # Запуск бота в неблокирующем режиме (в отдельном потоке)
         UPDATER_INSTANCE.start_polling()
         logging.info("[TG_BOT] Telegram-бот успешно запущен.")
 
     except (TelegramError, ValueError) as e:
         logging.error(f"[TG_BOT] Ошибка запуска Telegram-бота: {e}")
-        BOT_INSTANCE = None
-        UPDATER_INSTANCE = None
 
 
+# ... (функция stop_bot и декоратор admin_only остаются без изменений) ...
 def stop_bot():
-    """Останавливает Telegram-бота."""
     if UPDATER_INSTANCE:
         UPDATER_INSTANCE.stop()
         logging.info("[TG_BOT] Telegram-бот остановлен.")
 
 
-# --- Декоратор для проверки прав администратора ---
-
 def admin_only(func):
-    """Декоратор, который проверяет, что команду вызвал администратор."""
-
     def wrapped(update: Update, context: CallbackContext, *args, **kwargs):
         user_id = update.effective_user.id
-        # <<< ИСПРАВЛЕНИЕ: Используем правильное имя переменной из config.py >>>
         if str(user_id) != str(config.TELEGRAM_ADMIN_CHAT_ID):
-            # <<< КОНЕЦ ИСПРАВЛЕНИЯ >>>
             logging.warning(f"[TG_BOT] Доступ запрещен для пользователя {user_id}.")
             update.message.reply_text("⛔️ У вас нет прав для выполнения этой команды.")
             return
@@ -78,22 +68,58 @@ def admin_only(func):
     return wrapped
 
 
-# --- Обработчики команд (без изменений) ---
+# --- Обработчики команд ---
 
 @admin_only
 def start_command(update: Update, context: CallbackContext):
-    """Ответ на команду /start."""
     user_name = update.effective_user.first_name
+    # <<< ИЗМЕНЕНИЕ: Обновляем текст приветствия >>>
     help_text = (
         f"👋 Привет, {user_name}!\n\n"
-        "Я бот для управления арендами. Вот список доступных команд:\n\n"
-        "/stats - Показать общую статистику (свободные/занятые аккаунты).\n"
-        "/rentals - Показать список активных аренд.\n"
-        "/games - Показать статистику по играм."
+        "Бот для управления арендами. Доступные команды:\n\n"
+        "**Управление ботом:**\n"
+        "/enable - ✅ Включить автоматический режим.\n"
+        "/disable - ⛔️ Выключить (ручной режим).\n"
+        "/status - ℹ️ Узнать текущий статус бота.\n\n"
+        "**Статистика:**\n"
+        "/stats - Общая статистика.\n"
+        "/rentals - Активные аренды.\n"
+        "/games - Статистика по играм."
     )
-    update.message.reply_text(help_text)
+    update.message.reply_text(help_text, parse_mode='Markdown')
+    # <<< КОНЕЦ ИЗМЕНЕНИЯ >>>
 
 
+# <<< ИЗМЕНЕНИЕ: Новые команды для управления состоянием >>>
+@admin_only
+def enable_bot_command(update: Update, context: CallbackContext):
+    """Включает бота."""
+    state_manager.is_bot_enabled = True
+    logging.info("[TG_BOT] Бот ВКЛЮЧЕН администратором.")
+    update.message.reply_text("✅ Бот включен. Автоматическая обработка заказов возобновлена.")
+
+
+@admin_only
+def disable_bot_command(update: Update, context: CallbackContext):
+    """Выключает бота."""
+    state_manager.is_bot_enabled = False
+    logging.warning("[TG_BOT] Бот ВЫКЛЮЧЕН администратором. Переход в ручной режим.")
+    update.message.reply_text("⛔️ Бот выключен. Новые заказы и сообщения FunPay будут игнорироваться.")
+
+
+@admin_only
+def status_command(update: Update, context: CallbackContext):
+    """Показывает текущий статус бота."""
+    if state_manager.is_bot_enabled:
+        update.message.reply_text("✅ Бот сейчас включен (автоматический режим).")
+    else:
+        update.message.reply_text("⛔️ Бот сейчас выключен (ручной режим).")
+
+
+# <<< КОНЕЦ ИЗМЕНЕНИЯ >>>
+
+
+# ... (остальные команды stats_command, rentals_command, games_command остаются без изменений) ...
 @admin_only
 def stats_command(update: Update, context: CallbackContext):
     """Показывает общую статистику по аккаунтам."""

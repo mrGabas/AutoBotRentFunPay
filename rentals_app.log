@@ -2578,3 +2578,48 @@ FunPayAPI.common.exceptions.AccountNotInitiatedError: Необходимо по�
 2025-06-29 00:48:08,389 - INFO - [update_offer_status_for_game] - [OFFER_MANAGER] Проверка для 'Battlefield 5'. Свободно: 1. Лоты: {45214968, 45214895}
 2025-06-29 00:48:38,614 - INFO - [full_update] - Интерфейс обновлен.
 2025-06-29 00:48:40,613 - INFO - [on_closing] - Приложение закрыто.
+2025-06-29 00:48:54,821 - WARNING - [_put_conn] - Connection pool is full, discarding connection: api.telegram.org
+2025-06-29 00:49:05,055 - WARNING - [_put_conn] - Connection pool is full, discarding connection: api.telegram.org
+2025-06-29 00:49:10,300 - INFO - [update_offer_status_for_game] - [OFFER_MANAGER] Проверка для 'Dead by Daylight: Five Nights at Freddy's'. Свободно: 2. Лоты: {44951058, 44951029, 44951071}
+2025-06-29 00:50:13,103 - INFO - [update_offer_status_for_game] - [OFFER_MANAGER] Проверка для 'PEAK'. Свободно: 2. Лоты: {45197606, 45168881, 45169134, 45169158}
+2025-06-29 00:52:16,907 - INFO - [update_offer_status_for_game] - [OFFER_MANAGER] Проверка для 'STAR WARS Battlefront 2'. Свободно: 1. Лоты: {45322759}
+2025-06-29 00:53:17,870 - INFO - [update_offer_status_for_game] - [OFFER_MANAGER] Проверка для 'Among us'. Свободно: 1. Лоты: {45198131, 45197907, 45198479}
+2025-06-29 00:54:19,643 - INFO - [main] - Получен сигнал о завершении работы...
+2025-06-29 00:54:19,643 - INFO - [shutdown] - Scheduler has been shut down
+2025-06-29 00:54:20,681 - INFO - [update_offer_status_for_game] - [OFFER_MANAGER] Проверка для 'Battlefield 5'. Свободно: 1. Лоты: {45214968, 45214895}
+2025-06-29 00:54:22,340 - INFO - [stop_bot] - [TG_BOT] Telegram-бот остановлен.
+2025-06-29 00:54:22,340 - INFO - [main] - Серверный бот остановлен.
+2025-06-29 01:00:00,262 - INFO - [main] - ==============================
+2025-06-29 01:00:00,262 - INFO - [main] - Начало запуска серверного бота...
+2025-06-29 01:00:00,262 - INFO - [initialize_and_update_db] - Проверка и инициализация базы данных...
+2025-06-29 01:00:00,264 - INFO - [initialize_and_update_db] - Схема базы данных актуальна.
+2025-06-29 01:00:02,524 - INFO - [main] - Авторизация на FunPay как 'mrGabas' (ID: 13999623).
+2025-06-29 01:00:02,524 - INFO - [sync_games_with_funpay_offers] - [SYNC] Запуск синхронизации игр с лотами FunPay.
+2025-06-29 01:00:05,050 - INFO - [sync_games_with_funpay_offers] - [SYNC] Найдено 936 лотов на аккаунте. Начинаю анализ.
+2025-06-29 01:00:05,056 - INFO - [sync_games_with_funpay_offers] - [SYNC] Автоматическая синхронизация ID лотов завершена.
+2025-06-29 01:00:05,056 - INFO - [sync_games_with_funpay_offers] - [SYNC_CHECK] Запуск первичной проверки статусов всех лотов.
+2025-06-29 01:00:05,058 - INFO - [update_offer_status_for_game] - [OFFER_MANAGER] Проверка для 'Among us'. Свободно: 1. Лоты: {45198131, 45197907, 45198479}
+2025-06-29 01:00:10,913 - INFO - [update_offer_status_for_game] - [OFFER_MANAGER] Проверка для 'Battlefield 5'. Свободно: 1. Лоты: {45214968, 45214895}
+2025-06-29 01:00:15,791 - INFO - [update_offer_status_for_game] - [OFFER_MANAGER] Проверка для 'Dead by Daylight: Five Nights at Freddy's'. Свободно: 2. Лоты: {44951058, 44951029, 44951071}
+2025-06-29 01:00:21,611 - INFO - [update_offer_status_for_game] - [OFFER_MANAGER] Проверка для 'PEAK'. Свободно: 2. Лоты: {45197606, 45168881, 45169134, 45169158}
+2025-06-29 01:00:31,316 - INFO - [update_offer_status_for_game] - [OFFER_MANAGER] Проверка для 'STAR WARS Battlefront 2'. Свободно: 1. Лоты: {45322759}
+2025-06-29 01:00:35,245 - INFO - [sync_games_with_funpay_offers] - [SYNC_CHECK] Первичная проверка статусов лотов завершена.
+2025-06-29 01:00:35,246 - INFO - [funpay_bot_listener] - FunPay обработчик событий запущен.
+2025-06-29 01:00:35,246 - INFO - [main] - Поток прослушивания FunPay запущен.
+2025-06-29 01:00:35,247 - INFO - [expired_rentals_checker] - [SYNC_CHECKER] Запущен объединенный проверщик статусов.
+2025-06-29 01:00:35,247 - INFO - [main] - Поток проверки статусов запущен.
+2025-06-29 01:00:35,248 - WARNING - [__init__] - Connection pool of Request object is smaller than optimal value (8)
+2025-06-29 01:00:35,249 - INFO - [start] - Scheduler started
+2025-06-29 01:00:35,251 - INFO - [update_offer_status_for_game] - [OFFER_MANAGER] Проверка для 'Among us'. Свободно: 1. Лоты: {45198131, 45197907, 45198479}
+2025-06-29 01:00:36,183 - INFO - [start_bot] - [TG_BOT] Telegram-бот успешно запущен.
+2025-06-29 01:00:41,613 - WARNING - [_put_conn] - Connection pool is full, discarding connection: api.telegram.org
+2025-06-29 01:00:45,166 - WARNING - [_put_conn] - Connection pool is full, discarding connection: api.telegram.org
+2025-06-29 01:00:45,168 - WARNING - [disable_bot_command] - [TG_BOT] Бот ВЫКЛЮЧЕН администратором. Переход в ручной режим.
+2025-06-29 01:00:55,399 - WARNING - [_put_conn] - Connection pool is full, discarding connection: api.telegram.org
+2025-06-29 01:01:02,010 - INFO - [enable_bot_command] - [TG_BOT] Бот ВКЛЮЧЕН администратором.
+2025-06-29 01:01:07,706 - WARNING - [_put_conn] - Connection pool is full, discarding connection: api.telegram.org
+2025-06-29 01:01:10,768 - WARNING - [_put_conn] - Connection pool is full, discarding connection: api.telegram.org
+2025-06-29 01:01:21,006 - WARNING - [_put_conn] - Connection pool is full, discarding connection: api.telegram.org
+2025-06-29 01:01:38,080 - INFO - [update_offer_status_for_game] - [OFFER_MANAGER] Проверка для 'Battlefield 5'. Свободно: 1. Лоты: {45214968, 45214895}
+2025-06-29 01:01:42,475 - INFO - [main] - Получен сигнал о завершении работы...
+2025-06-29 01:01:42,476 - INFO - [shutdown] - Scheduler has been shut down

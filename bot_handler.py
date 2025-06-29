@@ -14,6 +14,7 @@ import db_handler
 from telegram_notifier import send_telegram_notification, send_telegram_alert
 import localization
 from utils import format_timedelta
+import state_manager
 
 # Глобальная переменная для поочередной проверки игр
 game_check_index = 0
@@ -144,6 +145,9 @@ def expired_rentals_checker(account: Account):
     logging.info("[SYNC_CHECKER] Запущен объединенный проверщик статусов.")
     while True:
         try:
+            if not state_manager.is_bot_enabled:
+                time.sleep(30)  # В ручном режиме просто ждем
+                continue
             # 1. Обработка истекших аренд
             freed_game_ids = db_handler.check_and_process_expired_rentals()
             if freed_game_ids:
@@ -199,6 +203,11 @@ def funpay_bot_listener(account, update_queue):
     while True:
         try:
             for event in runner.listen():
+                if not state_manager.is_bot_enabled:
+                    if event.type == EventTypes.NEW_ORDER or event.type == EventTypes.NEW_MESSAGE:
+                        logging.info(f"[BOT_DISABLED] Получено событие {event.type}, но бот выключен. Игнорирую.")
+                    time.sleep(5)
+                    continue
                 if event.type == EventTypes.NEW_ORDER:
                     order = event.order
                     logging.info(f"[BOT] Обнаружен новый заказ #{order.id} от {order.buyer_username}.")
