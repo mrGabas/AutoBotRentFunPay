@@ -2307,3 +2307,188 @@ AttributeError: 'Account' object has no attribute 'get_offers'
 2025-06-28 22:07:09,593 - INFO - [full_update] - Интерфейс обновлен.
 2025-06-28 22:07:09,595 - INFO - [__init__] - GUI приложение успешно инициализировано.
 2025-06-28 22:07:12,518 - INFO - [on_closing] - Приложение закрыто.
+2025-06-29 00:05:25,094 - INFO - [<module>] - ==============================
+2025-06-29 00:05:25,094 - INFO - [<module>] - СЕРВЕРНЫЙ БОТ ЗАПУСКАЕТСЯ...
+2025-06-29 00:05:25,094 - INFO - [initialize_and_update_db] - Проверка и инициализация базы данных...
+2025-06-29 00:05:25,096 - INFO - [initialize_and_update_db] - Схема базы данных актуальна.
+2025-06-29 00:05:25,096 - INFO - [<module>] - Инициализация FunPay аккаунта...
+2025-06-29 00:05:27,309 - INFO - [<module>] - Успешная авторизация как: mrGabas.
+2025-06-29 00:05:27,309 - INFO - [sync_games_with_funpay_offers] - [SYNC] Запуск синхронизации игр с лотами FunPay.
+2025-06-29 00:05:29,863 - INFO - [sync_games_with_funpay_offers] - [SYNC] Найдено 936 лотов на аккаунте. Начинаю анализ.
+2025-06-29 00:05:29,867 - INFO - [set_game_offer_ids] - Для game_id 5 установлены лоты: 45197907,45198131,45198479
+2025-06-29 00:05:29,868 - INFO - [set_game_offer_ids] - Для game_id 6 установлены лоты: 45214895,45214968
+2025-06-29 00:05:29,869 - INFO - [set_game_offer_ids] - Для game_id 3 установлены лоты: 44951029,44951058,44951071
+2025-06-29 00:05:29,869 - INFO - [set_game_offer_ids] - Для game_id 4 установлены лоты: 45168881,45169134,45169158,45197606
+2025-06-29 00:05:29,870 - INFO - [set_game_offer_ids] - Для game_id 9 установлены лоты: 45322759
+2025-06-29 00:05:29,870 - INFO - [sync_games_with_funpay_offers] - [SYNC] Автоматическая синхронизация ID лотов завершена.
+2025-06-29 00:05:29,870 - INFO - [sync_games_with_funpay_offers] - [SYNC_CHECK] Запуск первичной проверки статусов всех лотов.
+2025-06-29 00:05:29,870 - INFO - [update_offer_status_for_game] - [OFFER_MANAGER] Проверка для 'Among us'. Свободно: 1. Лоты: {45198131, 45197907, 45198479}
+2025-06-29 00:05:35,673 - INFO - [update_offer_status_for_game] - [OFFER_MANAGER] Проверка для 'Battlefield 5'. Свободно: 1. Лоты: {45214968, 45214895}
+2025-06-29 00:05:40,632 - INFO - [update_offer_status_for_game] - [OFFER_MANAGER] Проверка для 'Dead by Daylight: Five Nights at Freddy's'. Свободно: 1. Лоты: {44951058, 44951029, 44951071}
+2025-06-29 00:05:46,502 - INFO - [update_offer_status_for_game] - [OFFER_MANAGER] Проверка для 'PEAK'. Свободно: 2. Лоты: {45197606, 45168881, 45169134, 45169158}
+2025-06-29 00:05:56,225 - INFO - [update_offer_status_for_game] - [OFFER_MANAGER] Проверка для 'STAR WARS Battlefront 2'. Свободно: 1. Лоты: {45322759}
+2025-06-29 00:06:00,141 - INFO - [sync_games_with_funpay_offers] - [SYNC_CHECK] Первичная проверка статусов лотов завершена.
+2025-06-29 00:06:00,142 - INFO - [funpay_bot_listener] - FunPay обработчик событий запущен.
+2025-06-29 00:06:00,143 - INFO - [expired_rentals_checker] - [SYNC_CHECKER] Запущен объединенный проверщик статусов.
+2025-06-29 00:06:00,143 - INFO - [<module>] - Все фоновые процессы запущены. Бот в рабочем режиме.
+2025-06-29 00:06:00,146 - INFO - [update_offer_status_for_game] - [OFFER_MANAGER] Проверка для 'Among us'. Свободно: 1. Лоты: {45198131, 45197907, 45198479}
+2025-06-29 00:07:02,970 - INFO - [update_offer_status_for_game] - [OFFER_MANAGER] Проверка для 'Battlefield 5'. Свободно: 1. Лоты: {45214968, 45214895}
+2025-06-29 00:07:36,134 - INFO - [<module>] - Получен сигнал на остановку. Завершение работы...
+2025-06-29 00:07:42,604 - INFO - [<module>] - ==============================
+2025-06-29 00:07:42,604 - INFO - [<module>] - СЕРВЕРНЫЙ БОТ ЗАПУСКАЕТСЯ...
+2025-06-29 00:07:42,604 - INFO - [initialize_and_update_db] - Проверка и инициализация базы данных...
+2025-06-29 00:07:42,606 - INFO - [initialize_and_update_db] - Схема базы данных актуальна.
+2025-06-29 00:07:42,606 - INFO - [<module>] - Инициализация FunPay аккаунта...
+2025-06-29 00:07:45,135 - INFO - [<module>] - Успешная авторизация как: mrGabas.
+2025-06-29 00:07:45,135 - INFO - [sync_games_with_funpay_offers] - [SYNC] Запуск синхронизации игр с лотами FunPay.
+2025-06-29 00:07:45,236 - INFO - [<module>] - ==============================
+2025-06-29 00:07:45,236 - INFO - [<module>] - Запуск GUI клиента...
+2025-06-29 00:07:45,237 - INFO - [initialize_and_update_db] - Проверка и инициализация базы данных...
+2025-06-29 00:07:45,238 - INFO - [initialize_and_update_db] - Схема базы данных актуальна.
+2025-06-29 00:07:47,726 - INFO - [sync_games_with_funpay_offers] - [SYNC] Найдено 936 лотов на аккаунте. Начинаю анализ.
+2025-06-29 00:07:47,730 - INFO - [set_game_offer_ids] - Для game_id 5 установлены лоты: 45197907,45198131,45198479
+2025-06-29 00:07:47,731 - INFO - [set_game_offer_ids] - Для game_id 6 установлены лоты: 45214895,45214968
+2025-06-29 00:07:47,732 - INFO - [set_game_offer_ids] - Для game_id 3 установлены лоты: 44951029,44951058,44951071
+2025-06-29 00:07:47,732 - INFO - [set_game_offer_ids] - Для game_id 4 установлены лоты: 45168881,45169134,45169158,45197606
+2025-06-29 00:07:47,733 - INFO - [set_game_offer_ids] - Для game_id 9 установлены лоты: 45322759
+2025-06-29 00:07:47,733 - INFO - [sync_games_with_funpay_offers] - [SYNC] Автоматическая синхронизация ID лотов завершена.
+2025-06-29 00:07:47,733 - INFO - [sync_games_with_funpay_offers] - [SYNC_CHECK] Запуск первичной проверки статусов всех лотов.
+2025-06-29 00:07:47,734 - INFO - [update_offer_status_for_game] - [OFFER_MANAGER] Проверка для 'Among us'. Свободно: 1. Лоты: {45198131, 45197907, 45198479}
+2025-06-29 00:07:48,375 - INFO - [full_update] - Интерфейс обновлен.
+2025-06-29 00:07:48,377 - INFO - [__init__] - GUI приложение успешно инициализировано.
+2025-06-29 00:07:53,553 - INFO - [update_offer_status_for_game] - [OFFER_MANAGER] Проверка для 'Battlefield 5'. Свободно: 1. Лоты: {45214968, 45214895}
+2025-06-29 00:07:55,582 - INFO - [on_closing] - Приложение закрыто.
+2025-06-29 00:07:58,437 - INFO - [update_offer_status_for_game] - [OFFER_MANAGER] Проверка для 'Dead by Daylight: Five Nights at Freddy's'. Свободно: 1. Лоты: {44951058, 44951029, 44951071}
+2025-06-29 00:08:04,238 - INFO - [update_offer_status_for_game] - [OFFER_MANAGER] Проверка для 'PEAK'. Свободно: 2. Лоты: {45197606, 45168881, 45169134, 45169158}
+2025-06-29 00:08:14,022 - INFO - [update_offer_status_for_game] - [OFFER_MANAGER] Проверка для 'STAR WARS Battlefront 2'. Свободно: 1. Лоты: {45322759}
+2025-06-29 00:08:18,018 - INFO - [sync_games_with_funpay_offers] - [SYNC_CHECK] Первичная проверка статусов лотов завершена.
+2025-06-29 00:08:18,019 - INFO - [funpay_bot_listener] - FunPay обработчик событий запущен.
+2025-06-29 00:08:18,020 - INFO - [expired_rentals_checker] - [SYNC_CHECKER] Запущен объединенный проверщик статусов.
+2025-06-29 00:08:18,020 - INFO - [<module>] - Все фоновые процессы запущены. Бот в рабочем режиме.
+2025-06-29 00:08:18,023 - INFO - [update_offer_status_for_game] - [OFFER_MANAGER] Проверка для 'Among us'. Свободно: 1. Лоты: {45198131, 45197907, 45198479}
+2025-06-29 00:08:26,657 - INFO - [<module>] - ==============================
+2025-06-29 00:08:26,658 - INFO - [<module>] - СЕРВЕРНЫЙ БОТ ЗАПУСКАЕТСЯ...
+2025-06-29 00:08:26,658 - INFO - [initialize_and_update_db] - Проверка и инициализация базы данных...
+2025-06-29 00:08:26,659 - INFO - [initialize_and_update_db] - Схема базы данных актуальна.
+2025-06-29 00:08:26,660 - INFO - [<module>] - Инициализация FunPay аккаунта...
+2025-06-29 00:08:27,785 - INFO - [<module>] - ==============================
+2025-06-29 00:08:27,785 - INFO - [<module>] - Запуск GUI клиента...
+2025-06-29 00:08:27,785 - INFO - [initialize_and_update_db] - Проверка и инициализация базы данных...
+2025-06-29 00:08:27,787 - INFO - [initialize_and_update_db] - Схема базы данных актуальна.
+2025-06-29 00:08:28,391 - INFO - [full_update] - Интерфейс обновлен.
+2025-06-29 00:08:28,393 - INFO - [__init__] - GUI приложение успешно инициализировано.
+2025-06-29 00:08:28,887 - INFO - [<module>] - Успешная авторизация как: mrGabas.
+2025-06-29 00:08:28,887 - INFO - [sync_games_with_funpay_offers] - [SYNC] Запуск синхронизации игр с лотами FunPay.
+2025-06-29 00:08:31,401 - INFO - [sync_games_with_funpay_offers] - [SYNC] Найдено 936 лотов на аккаунте. Начинаю анализ.
+2025-06-29 00:08:31,408 - INFO - [set_game_offer_ids] - Для game_id 5 установлены лоты: 45197907,45198131,45198479
+2025-06-29 00:08:31,413 - INFO - [set_game_offer_ids] - Для game_id 6 установлены лоты: 45214895,45214968
+2025-06-29 00:08:31,417 - INFO - [set_game_offer_ids] - Для game_id 3 установлены лоты: 44951029,44951058,44951071
+2025-06-29 00:08:31,421 - INFO - [set_game_offer_ids] - Для game_id 4 установлены лоты: 45168881,45169134,45169158,45197606
+2025-06-29 00:08:31,425 - INFO - [set_game_offer_ids] - Для game_id 9 установлены лоты: 45322759
+2025-06-29 00:08:31,425 - INFO - [sync_games_with_funpay_offers] - [SYNC] Автоматическая синхронизация ID лотов завершена.
+2025-06-29 00:08:31,425 - INFO - [sync_games_with_funpay_offers] - [SYNC_CHECK] Запуск первичной проверки статусов всех лотов.
+2025-06-29 00:08:31,426 - INFO - [update_offer_status_for_game] - [OFFER_MANAGER] Проверка для 'Among us'. Свободно: 1. Лоты: {45198131, 45197907, 45198479}
+2025-06-29 00:08:37,239 - INFO - [update_offer_status_for_game] - [OFFER_MANAGER] Проверка для 'Battlefield 5'. Свободно: 1. Лоты: {45214968, 45214895}
+2025-06-29 00:08:42,123 - INFO - [update_offer_status_for_game] - [OFFER_MANAGER] Проверка для 'Dead by Daylight: Five Nights at Freddy's'. Свободно: 1. Лоты: {44951058, 44951029, 44951071}
+2025-06-29 00:08:47,964 - INFO - [update_offer_status_for_game] - [OFFER_MANAGER] Проверка для 'PEAK'. Свободно: 1. Лоты: {45197606, 45168881, 45169134, 45169158}
+2025-06-29 00:08:57,280 - INFO - [full_update] - Интерфейс обновлен.
+2025-06-29 00:08:57,773 - INFO - [update_offer_status_for_game] - [OFFER_MANAGER] Проверка для 'STAR WARS Battlefront 2'. Свободно: 1. Лоты: {45322759}
+2025-06-29 00:09:01,732 - INFO - [sync_games_with_funpay_offers] - [SYNC_CHECK] Первичная проверка статусов лотов завершена.
+2025-06-29 00:09:01,733 - INFO - [funpay_bot_listener] - FunPay обработчик событий запущен.
+2025-06-29 00:09:01,734 - INFO - [expired_rentals_checker] - [SYNC_CHECKER] Запущен объединенный проверщик статусов.
+2025-06-29 00:09:01,734 - INFO - [<module>] - Все фоновые процессы запущены. Бот в рабочем режиме.
+2025-06-29 00:09:01,737 - INFO - [update_offer_status_for_game] - [OFFER_MANAGER] Проверка для 'Among us'. Свободно: 1. Лоты: {45198131, 45197907, 45198479}
+2025-06-29 00:09:21,103 - INFO - [on_closing] - Приложение закрыто.
+2025-06-29 00:10:04,545 - INFO - [update_offer_status_for_game] - [OFFER_MANAGER] Проверка для 'Battlefield 5'. Свободно: 1. Лоты: {45214968, 45214895}
+2025-06-29 00:11:02,043 - INFO - [<module>] - ==============================
+2025-06-29 00:11:02,043 - INFO - [<module>] - СЕРВЕРНЫЙ БОТ ЗАПУСКАЕТСЯ...
+2025-06-29 00:11:02,044 - INFO - [initialize_and_update_db] - Проверка и инициализация базы данных...
+2025-06-29 00:11:02,045 - INFO - [initialize_and_update_db] - Схема базы данных актуальна.
+2025-06-29 00:11:02,046 - INFO - [<module>] - Инициализация FunPay аккаунта...
+2025-06-29 00:11:04,239 - INFO - [<module>] - Успешная авторизация как: mrGabas.
+2025-06-29 00:11:04,239 - INFO - [sync_games_with_funpay_offers] - [SYNC] Запуск синхронизации игр с лотами FunPay.
+2025-06-29 00:11:06,405 - INFO - [update_offer_status_for_game] - [OFFER_MANAGER] Проверка для 'Dead by Daylight: Five Nights at Freddy's'. Свободно: 1. Лоты: {44951058, 44951029, 44951071}
+2025-06-29 00:11:06,772 - INFO - [sync_games_with_funpay_offers] - [SYNC] Найдено 936 лотов на аккаунте. Начинаю анализ.
+2025-06-29 00:11:06,776 - INFO - [set_game_offer_ids] - Для game_id 5 установлены лоты: 45197907,45198131,45198479
+2025-06-29 00:11:06,777 - INFO - [set_game_offer_ids] - Для game_id 6 установлены лоты: 45214895,45214968
+2025-06-29 00:11:06,778 - INFO - [set_game_offer_ids] - Для game_id 3 установлены лоты: 44951029,44951058,44951071
+2025-06-29 00:11:06,778 - INFO - [set_game_offer_ids] - Для game_id 4 установлены лоты: 45168881,45169134,45169158,45197606
+2025-06-29 00:11:06,779 - INFO - [set_game_offer_ids] - Для game_id 9 установлены лоты: 45322759
+2025-06-29 00:11:06,779 - INFO - [sync_games_with_funpay_offers] - [SYNC] Автоматическая синхронизация ID лотов завершена.
+2025-06-29 00:11:06,779 - INFO - [sync_games_with_funpay_offers] - [SYNC_CHECK] Запуск первичной проверки статусов всех лотов.
+2025-06-29 00:11:06,779 - INFO - [update_offer_status_for_game] - [OFFER_MANAGER] Проверка для 'Among us'. Свободно: 1. Лоты: {45198131, 45197907, 45198479}
+2025-06-29 00:11:12,577 - INFO - [update_offer_status_for_game] - [OFFER_MANAGER] Проверка для 'Battlefield 5'. Свободно: 1. Лоты: {45214968, 45214895}
+2025-06-29 00:11:17,469 - INFO - [update_offer_status_for_game] - [OFFER_MANAGER] Проверка для 'Dead by Daylight: Five Nights at Freddy's'. Свободно: 1. Лоты: {44951058, 44951029, 44951071}
+2025-06-29 00:11:23,242 - INFO - [update_offer_status_for_game] - [OFFER_MANAGER] Проверка для 'PEAK'. Свободно: 1. Лоты: {45197606, 45168881, 45169134, 45169158}
+2025-06-29 00:11:33,011 - INFO - [update_offer_status_for_game] - [OFFER_MANAGER] Проверка для 'STAR WARS Battlefront 2'. Свободно: 1. Лоты: {45322759}
+2025-06-29 00:11:36,959 - INFO - [sync_games_with_funpay_offers] - [SYNC_CHECK] Первичная проверка статусов лотов завершена.
+2025-06-29 00:11:36,960 - INFO - [funpay_bot_listener] - FunPay обработчик событий запущен.
+2025-06-29 00:11:36,960 - INFO - [expired_rentals_checker] - [SYNC_CHECKER] Запущен объединенный проверщик статусов.
+2025-06-29 00:11:36,960 - INFO - [<module>] - Все фоновые процессы запущены. Бот в рабочем режиме.
+2025-06-29 00:11:36,964 - INFO - [update_offer_status_for_game] - [OFFER_MANAGER] Проверка для 'Among us'. Свободно: 1. Лоты: {45198131, 45197907, 45198479}
+2025-06-29 00:12:09,170 - INFO - [update_offer_status_for_game] - [OFFER_MANAGER] Проверка для 'PEAK'. Свободно: 1. Лоты: {45197606, 45168881, 45169134, 45169158}
+2025-06-29 00:12:39,759 - INFO - [update_offer_status_for_game] - [OFFER_MANAGER] Проверка для 'Battlefield 5'. Свободно: 1. Лоты: {45214968, 45214895}
+2025-06-29 00:13:41,637 - INFO - [update_offer_status_for_game] - [OFFER_MANAGER] Проверка для 'Dead by Daylight: Five Nights at Freddy's'. Свободно: 1. Лоты: {44951058, 44951029, 44951071}
+2025-06-29 00:14:12,897 - INFO - [update_offer_status_for_game] - [OFFER_MANAGER] Проверка для 'STAR WARS Battlefront 2'. Свободно: 1. Лоты: {45322759}
+2025-06-29 00:14:44,478 - INFO - [update_offer_status_for_game] - [OFFER_MANAGER] Проверка для 'PEAK'. Свободно: 1. Лоты: {45197606, 45168881, 45169134, 45169158}
+2025-06-29 00:15:13,871 - INFO - [update_offer_status_for_game] - [OFFER_MANAGER] Проверка для 'Among us'. Свободно: 1. Лоты: {45198131, 45197907, 45198479}
+2025-06-29 00:16:16,696 - INFO - [update_offer_status_for_game] - [OFFER_MANAGER] Проверка для 'Battlefield 5'. Свободно: 1. Лоты: {45214968, 45214895}
+2025-06-29 00:16:48,268 - INFO - [update_offer_status_for_game] - [OFFER_MANAGER] Проверка для 'STAR WARS Battlefront 2'. Свободно: 1. Лоты: {45322759}
+2025-06-29 00:17:18,558 - INFO - [update_offer_status_for_game] - [OFFER_MANAGER] Проверка для 'Dead by Daylight: Five Nights at Freddy's'. Свободно: 1. Лоты: {44951058, 44951029, 44951071}
+2025-06-29 00:17:49,216 - INFO - [update_offer_status_for_game] - [OFFER_MANAGER] Проверка для 'Among us'. Свободно: 1. Лоты: {45198131, 45197907, 45198479}
+2025-06-29 00:18:21,380 - INFO - [update_offer_status_for_game] - [OFFER_MANAGER] Проверка для 'PEAK'. Свободно: 1. Лоты: {45197606, 45168881, 45169134, 45169158}
+2025-06-29 00:18:46,307 - INFO - [<module>] - ==============================
+2025-06-29 00:18:46,308 - INFO - [<module>] - СЕРВЕРНЫЙ БОТ ЗАПУСКАЕТСЯ...
+2025-06-29 00:18:46,308 - INFO - [initialize_and_update_db] - Проверка и инициализация базы данных...
+2025-06-29 00:18:46,309 - INFO - [initialize_and_update_db] - Схема базы данных актуальна.
+2025-06-29 00:18:46,309 - INFO - [<module>] - Инициализация FunPay аккаунта...
+2025-06-29 00:18:48,528 - INFO - [<module>] - ==============================
+2025-06-29 00:18:48,528 - INFO - [<module>] - Запуск GUI клиента...
+2025-06-29 00:18:48,529 - INFO - [initialize_and_update_db] - Проверка и инициализация базы данных...
+2025-06-29 00:18:48,530 - INFO - [initialize_and_update_db] - Схема базы данных актуальна.
+2025-06-29 00:18:48,535 - INFO - [<module>] - Успешная авторизация как: mrGabas.
+2025-06-29 00:18:48,535 - INFO - [sync_games_with_funpay_offers] - [SYNC] Запуск синхронизации игр с лотами FunPay.
+2025-06-29 00:18:49,123 - INFO - [full_update] - Интерфейс обновлен.
+2025-06-29 00:18:49,125 - INFO - [__init__] - GUI приложение успешно инициализировано.
+2025-06-29 00:18:51,105 - INFO - [sync_games_with_funpay_offers] - [SYNC] Найдено 936 лотов на аккаунте. Начинаю анализ.
+2025-06-29 00:18:51,109 - INFO - [set_game_offer_ids] - Для game_id 5 установлены лоты: 45197907,45198131,45198479
+2025-06-29 00:18:51,110 - INFO - [set_game_offer_ids] - Для game_id 6 установлены лоты: 45214895,45214968
+2025-06-29 00:18:51,111 - INFO - [set_game_offer_ids] - Для game_id 3 установлены лоты: 44951029,44951058,44951071
+2025-06-29 00:18:51,111 - INFO - [set_game_offer_ids] - Для game_id 4 установлены лоты: 45168881,45169134,45169158,45197606
+2025-06-29 00:18:51,112 - INFO - [set_game_offer_ids] - Для game_id 9 установлены лоты: 45322759
+2025-06-29 00:18:51,112 - INFO - [sync_games_with_funpay_offers] - [SYNC] Автоматическая синхронизация ID лотов завершена.
+2025-06-29 00:18:51,112 - INFO - [sync_games_with_funpay_offers] - [SYNC_CHECK] Запуск первичной проверки статусов всех лотов.
+2025-06-29 00:18:51,113 - INFO - [update_offer_status_for_game] - [OFFER_MANAGER] Проверка для 'Among us'. Свободно: 1. Лоты: {45198131, 45197907, 45198479}
+2025-06-29 00:18:56,965 - INFO - [update_offer_status_for_game] - [OFFER_MANAGER] Проверка для 'Battlefield 5'. Свободно: 1. Лоты: {45214968, 45214895}
+2025-06-29 00:19:01,870 - INFO - [update_offer_status_for_game] - [OFFER_MANAGER] Проверка для 'Dead by Daylight: Five Nights at Freddy's'. Свободно: 1. Лоты: {44951058, 44951029, 44951071}
+2025-06-29 00:19:07,740 - INFO - [update_offer_status_for_game] - [OFFER_MANAGER] Проверка для 'PEAK'. Свободно: 1. Лоты: {45197606, 45168881, 45169134, 45169158}
+2025-06-29 00:19:17,530 - INFO - [update_offer_status_for_game] - [OFFER_MANAGER] Проверка для 'STAR WARS Battlefront 2'. Свободно: 1. Лоты: {45322759}
+2025-06-29 00:19:18,078 - INFO - [on_closing] - Приложение закрыто.
+2025-06-29 00:19:21,477 - INFO - [sync_games_with_funpay_offers] - [SYNC_CHECK] Первичная проверка статусов лотов завершена.
+2025-06-29 00:19:21,478 - INFO - [funpay_bot_listener] - FunPay обработчик событий запущен.
+2025-06-29 00:19:21,479 - INFO - [expired_rentals_checker] - [SYNC_CHECKER] Запущен объединенный проверщик статусов.
+2025-06-29 00:19:21,479 - INFO - [<module>] - Все фоновые процессы запущены. Бот в рабочем режиме.
+2025-06-29 00:19:21,482 - INFO - [update_offer_status_for_game] - [OFFER_MANAGER] Проверка для 'Among us'. Свободно: 1. Лоты: {45198131, 45197907, 45198479}
+2025-06-29 00:20:24,323 - INFO - [update_offer_status_for_game] - [OFFER_MANAGER] Проверка для 'Battlefield 5'. Свободно: 1. Лоты: {45214968, 45214895}
+2025-06-29 00:21:26,157 - INFO - [expired_rentals_checker] - [REMINDER] Найдено 1 аренд для отправки напоминаний.
+2025-06-29 00:21:27,077 - INFO - [expired_rentals_checker] - [REMINDER] Напоминание для аренды df456338-ff61-4c70-bee3-9e59f6c058c5 успешно отправлено в чат users-11618399-13999623.
+2025-06-29 00:21:29,083 - INFO - [update_offer_status_for_game] - [OFFER_MANAGER] Проверка для 'Dead by Daylight: Five Nights at Freddy's'. Свободно: 1. Лоты: {44951058, 44951029, 44951071}
+2025-06-29 00:22:21,379 - INFO - [<module>] - ==============================
+2025-06-29 00:22:21,379 - INFO - [<module>] - Запуск GUI клиента...
+2025-06-29 00:22:21,379 - INFO - [initialize_and_update_db] - Проверка и инициализация базы данных...
+2025-06-29 00:22:21,381 - INFO - [initialize_and_update_db] - Схема базы данных актуальна.
+2025-06-29 00:22:21,980 - INFO - [full_update] - Интерфейс обновлен.
+2025-06-29 00:22:21,982 - INFO - [__init__] - GUI приложение успешно инициализировано.
+2025-06-29 00:22:57,487 - INFO - [full_update] - Интерфейс обновлен.
+2025-06-29 00:23:17,863 - INFO - [on_closing] - Приложение закрыто.
+2025-06-29 00:23:26,160 - INFO - [<module>] - ==============================
+2025-06-29 00:23:26,161 - INFO - [<module>] - СЕРВЕРНЫЙ БОТ ЗАПУСКАЕТСЯ...
+2025-06-29 00:23:26,161 - INFO - [initialize_and_update_db] - Проверка и инициализация базы данных...
+2025-06-29 00:23:26,162 - INFO - [initialize_and_update_db] - Схема базы данных актуальна.
+2025-06-29 00:23:26,163 - INFO - [<module>] - Инициализация FunPay аккаунта...
+2025-06-29 00:23:28,382 - INFO - [<module>] - Успешная авторизация как: mrGabas.
+2025-06-29 00:23:28,382 - INFO - [sync_games_with_funpay_offers] - [SYNC] Запуск синхронизации игр с лотами FunPay.
+2025-06-29 00:23:30,830 - INFO - [sync_games_with_funpay_offers] - [SYNC] Найдено 936 лотов на аккаунте. Начинаю анализ.
+2025-06-29 00:23:30,836 - INFO - [sync_games_with_funpay_offers] - [SYNC] Автоматическая синхронизация ID лотов завершена.
+2025-06-29 00:23:30,836 - INFO - [sync_games_with_funpay_offers] - [SYNC_CHECK] Запуск первичной проверки статусов всех лотов.
+2025-06-29 00:23:30,836 - INFO - [update_offer_status_for_game] - [OFFER_MANAGER] Проверка для 'Among us'. Свободно: 1. Лоты: {45198131, 45197907, 45198479}

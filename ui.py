@@ -3,7 +3,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox, simpledialog
 from datetime import datetime, timedelta
 import pytz
-from utils import format_timedelta
+from utils import format_timedelta, format_display_time
 
 
 class UIManager:
@@ -12,11 +12,11 @@ class UIManager:
     всех элементов графического интерфейса (GUI).
     """
 
-    def __init__(self, master, action_handler=None):
+    def __init__(self, master, action_handler):
         self.master = master
-        self.app_actions = action_handler  # Ссылка на ActionHandler для привязки к кнопкам
+        self.app_actions = action_handler  # Ссылка на обработчик действий (RentalApp)
 
-        # --- Переменные для виджетов ---
+        # Переменные для виджетов
         self.entry_name = None
         self.game_var = tk.StringVar(master)
         self.game_menu = None
@@ -34,23 +34,45 @@ class UIManager:
         self.accounts_tree = None
 
         self._create_widgets()
-        # Привязка события изменения игры к методу обновления списка аккаунтов
-        self.game_var.trace_add("write", self._on_game_change)
-        # Привязка событий поиска
-        self.search_rentals_var.trace_add("write", self._on_rental_search)
-        self.search_history_var.trace_add("write", self._on_history_search)
+        self._create_menu()  # Восстанавливаем создание меню
 
-    def update_all_views(self, data_manager):
-        """Обновляет все таблицы и меню свежими данными из DataManager."""
-        self.update_rentals_table(data_manager.rentals)
-        self.update_history_table(data_manager.history)
-        self.update_accounts_table(data_manager.accounts)
-        self.update_game_menu(data_manager.games)
+        # Привязка событий
+        self.game_var.trace_add("write",
+                                lambda *_: self.update_account_menu(self.app_actions.games, self.app_actions.accounts))
+        self.search_rentals_var.trace_add("write", lambda *_: self.update_rentals_table(self.app_actions.rentals))
+        self.search_history_var.trace_add("write", lambda *_: self.update_history_table(self.app_actions.history))
+
+    def update_all_views(self, data_provider):
+        """Обновляет все таблицы и меню свежими данными из RentalApp."""
+        self.update_rentals_table(data_provider.rentals)
+        self.update_history_table(data_provider.history)
+        self.update_accounts_table(data_provider.accounts)
+        self.update_game_menu(data_provider.games)
         # Обновление меню аккаунтов произойдет автоматически через trace
-        if self.game_var.get() == "":
-            self.update_account_menu(data_manager.games, data_manager.accounts)
+        if self.game_var.get() == "" or self.game_var.get() not in [g['name'] for g in data_provider.games]:
+            if data_provider.games:
+                self.game_var.set(data_provider.games[0]['name'])
+            else:
+                self.update_account_menu(data_provider.games, data_provider.accounts)
 
     # --- Методы создания виджетов ---
+
+    def _create_menu(self):
+        """Создает верхнее меню приложения."""
+        main_menu = tk.Menu(self.master)
+        self.master.config(menu=main_menu)
+
+        file_menu = tk.Menu(main_menu, tearoff=0)
+        main_menu.add_cascade(label="Файл", menu=file_menu)
+
+        file_menu.add_command(label="Экспорт истории в CSV", command=self.app_actions.export_history_to_csv)
+        file_menu.add_command(label="Экспорт аккаунтов в CSV", command=self.app_actions.export_accounts_to_csv)
+        file_menu.add_command(label="Импорт аккаунтов из CSV", command=self.app_actions.import_accounts_from_csv)
+        file_menu.add_separator()
+        file_menu.add_command(label="Создать резервную копию БД", command=self.app_actions.backup_database)
+        file_menu.add_command(label="Восстановить БД из копии", command=self.app_actions.restore_database)
+        file_menu.add_separator()
+        file_menu.add_command(label="Выход", command=self.app_actions.on_closing)
 
     def _create_widgets(self):
         """Создает все основные виджеты приложения."""
@@ -92,11 +114,11 @@ class UIManager:
         self.entry_info = ttk.Entry(frame_input, width=25)
         self.entry_info.grid(row=1, column=4, padx=5, sticky='ew')
 
-        ttk.Button(frame_input, text="Добавить аренду", command=lambda: self.app_actions.add_client()).grid(row=1,
-                                                                                                            column=5,
-                                                                                                            padx=10,
-                                                                                                            rowspan=2,
-                                                                                                            ipady=10)
+        ttk.Button(frame_input, text="Добавить аренду", command=self.app_actions.add_client).grid(row=1,
+                                                                                                  column=5,
+                                                                                                  padx=10,
+                                                                                                  rowspan=2,
+                                                                                                  ipady=10)
 
         self.clock_label = tk.Label(frame_input, text="", font=("Arial", 10))
         self.clock_label.grid(row=0, column=5, sticky='e', padx=10)
@@ -138,6 +160,7 @@ class UIManager:
         self.tree.column("Логин", width=100)
         self.tree.column("Пароль", width=100)
         self.tree.column("Инфо", width=150)
+        self.tree.bind("<Double-1>", self.app_actions.edit_rental)
 
         self.tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         scrollbar = ttk.Scrollbar(tree_frame, orient=tk.VERTICAL, command=self.tree.yview)
@@ -150,9 +173,12 @@ class UIManager:
         buttons_frame = ttk.Frame(tab)
         buttons_frame.pack(fill=tk.X, padx=10, pady=5)
         ttk.Button(buttons_frame, text="Завершить (в историю)",
-                   command=lambda: self.app_actions.remove_selected()).pack(side=tk.LEFT, expand=True, fill=tk.X,
-                                                                            padx=(0, 5))
-        ttk.Button(buttons_frame, text="Продлить аренду", command=lambda: self.app_actions.extend_rental()).pack(
+                   command=self.app_actions.remove_selected).pack(side=tk.LEFT, expand=True, fill=tk.X,
+                                                                  padx=(0, 5))
+        ttk.Button(buttons_frame, text="Редактировать", command=self.app_actions.edit_rental).pack(side=tk.LEFT,
+                                                                                                   expand=True,
+                                                                                                   fill=tk.X, padx=5)
+        ttk.Button(buttons_frame, text="Продлить аренду", command=self.app_actions.extend_rental).pack(
             side=tk.LEFT, expand=True, fill=tk.X)
         return tab
 
@@ -180,22 +206,21 @@ class UIManager:
 
         buttons_frame = ttk.Frame(tab)
         buttons_frame.pack(fill=tk.X, padx=10, pady=5)
-        # Пример привязки: ttk.Button(buttons_frame, text="Удалить", command=lambda: self.app_actions.remove_from_history()).pack()
+        ttk.Button(buttons_frame, text="Удалить выбранное", command=self.app_actions.remove_from_history).pack(
+            side=tk.LEFT, expand=True, fill=tk.X)
         return tab
 
     def _create_manage_tab(self, parent):
         """Создает вкладку управления играми и аккаунтами."""
         tab = ttk.Frame(parent)
 
-        # Управление играми
         games_frame = ttk.LabelFrame(tab, text="Игры", padding=10)
         games_frame.pack(fill=tk.X, padx=10, pady=10)
-        ttk.Button(games_frame, text="➕ Добавить игру", command=lambda: self.app_actions.add_game()).pack(side=tk.LEFT,
-                                                                                                          padx=5)
-        ttk.Button(games_frame, text="➖ Удалить игру", command=lambda: self.app_actions.remove_game()).pack(
+        ttk.Button(games_frame, text="➕ Добавить игру", command=self.app_actions.add_game).pack(side=tk.LEFT,
+                                                                                                padx=5)
+        ttk.Button(games_frame, text="➖ Удалить игру", command=self.app_actions.remove_game).pack(
             side=tk.LEFT, padx=5)
 
-        # Таблица аккаунтов
         accounts_frame = ttk.LabelFrame(tab, text="Аккаунты", padding=10)
         accounts_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
         accounts_columns = ("Игра", "Логин", "Пароль", "Статус", "Арендатор")
@@ -206,21 +231,13 @@ class UIManager:
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         self.accounts_tree.configure(yscrollcommand=scrollbar.set)
 
-        # Кнопки управления аккаунтами
         acc_buttons_frame = ttk.Frame(tab)
         acc_buttons_frame.pack(fill=tk.X, padx=10, pady=(0, 5))
-        ttk.Button(acc_buttons_frame, text="➕ Добавить аккаунт", command=lambda: self.app_actions.add_account()).pack(
+        ttk.Button(acc_buttons_frame, text="➕ Добавить аккаунт", command=self.app_actions.add_account).pack(
             side=tk.LEFT, expand=True, fill=tk.X, padx=(0, 5))
-        ttk.Button(acc_buttons_frame, text="➖ Удалить аккаунт", command=lambda: self.app_actions.remove_account()).pack(
+        ttk.Button(acc_buttons_frame, text="➖ Удалить аккаунт", command=self.app_actions.remove_account).pack(
             side=tk.LEFT, expand=True, fill=tk.X)
 
-        # Резервное копирование
-        backup_frame = ttk.LabelFrame(tab, text="Резервное копирование", padding=10)
-        backup_frame.pack(fill=tk.X, padx=10, pady=10, side=tk.BOTTOM)
-        ttk.Button(backup_frame, text="Создать резервную копию",
-                   command=lambda: self.app_actions.backup_database()).pack(side=tk.LEFT, expand=True, fill=tk.X,
-                                                                            padx=(0, 5))
-        # ttk.Button(backup_frame, text="Восстановить из копии", command=...
         return tab
 
     # --- Методы обновления виджетов ---
@@ -228,7 +245,6 @@ class UIManager:
         self.tree.delete(*self.tree.get_children())
         search_term = self.search_rentals_var.get().lower()
         now = datetime.now()
-        msk_tz = pytz.timezone("Europe/Moscow")
 
         filtered_data = [r for r in rentals_data if
                          not search_term or any(search_term in str(val).lower() for val in r.values())]
@@ -239,11 +255,12 @@ class UIManager:
 
             time_left = end_time - now
             tag = 'danger' if time_left.total_seconds() < 600 else 'normal'
-            end_time_str = end_time.astimezone(msk_tz).strftime('%d.%m %H:%M')
+            end_time_str = format_display_time(end_time.astimezone(pytz.timezone("Europe/Moscow")))
+            duration_str = format_timedelta(timedelta(minutes=r.get('minutes', 0)))
             time_left_str = format_timedelta(time_left)
 
             self.tree.insert('', 'end', iid=r.get('id'), values=(
-                r.get("name"), r.get("game"), f"{r.get('minutes', 0)} мин",
+                r.get("name"), r.get("game"), duration_str,
                 end_time_str, time_left_str, r.get("account_login"),
                 r.get("account_password"), r.get("info")
             ), tags=(tag,))
@@ -251,7 +268,6 @@ class UIManager:
     def update_history_table(self, history_data):
         self.history_tree.delete(*self.history_tree.get_children())
         search_term = self.search_history_var.get().lower()
-        msk_tz = pytz.timezone("Europe/Moscow")
 
         filtered_data = [h for h in history_data if
                          not search_term or any(search_term in str(val).lower() for val in h.values())]
@@ -259,10 +275,11 @@ class UIManager:
         for r in sorted(filtered_data, key=lambda r: r.get('end', datetime.min), reverse=True):
             end_time = r.get('end')
             if not end_time: continue
-            end_time_str = end_time.astimezone(msk_tz).strftime('%Y-%m-%d %H:%M')
+            end_time_str = format_display_time(end_time.astimezone(pytz.timezone("Europe/Moscow")))
+            duration_str = format_timedelta(timedelta(minutes=r.get('minutes', 0)))
 
             self.history_tree.insert('', 'end', iid=r.get('id'), values=(
-                r.get("name"), r.get("game"), f"{r.get('minutes', 0)} мин", end_time_str,
+                r.get("name"), r.get("game"), duration_str, end_time_str,
                 r.get("account_login"), r.get("account_password"), r.get("info")
             ))
 
@@ -279,27 +296,12 @@ class UIManager:
         menu = self.game_menu['menu']
         menu.delete(0, 'end')
         game_names = sorted([g['name'] for g in games_data])
-        current_game = self.game_var.get()
 
         for name in game_names:
             menu.add_command(label=name, command=tk._setit(self.game_var, name))
 
-        if game_names and current_game not in game_names:
-            self.game_var.set(game_names[0])
-        elif not game_names:
-            self.game_var.set("")
-
-    def _on_game_change(self, *args):
-        if self.app_actions:
-            self.update_account_menu(self.app_actions.data.games, self.app_actions.data.accounts)
-
-    def _on_rental_search(self, *args):
-        if self.app_actions:
-            self.update_rentals_table(self.app_actions.data.rentals)
-
-    def _on_history_search(self, *args):
-        if self.app_actions:
-            self.update_history_table(self.app_actions.data.history)
+        if games_data and (self.game_var.get() not in game_names):
+            self.game_var.set(games_data[0]['name'])
 
     def update_account_menu(self, games_data, accounts_data):
         menu = self.account_menu['menu']
@@ -320,6 +322,29 @@ class UIManager:
         else:
             self.account_var.set("Свободных аккаунтов нет")
 
+    def show_editor_window(self, rental_data, on_save_callback):
+        """Окно для редактирования аренды."""
+        editor_window = tk.Toplevel(self.master)
+        editor_window.title("Редактировать аренду")
+        editor_window.transient(self.master)
+        editor_window.grab_set()
+
+        tk.Label(editor_window, text="Имя клиента:").pack(pady=(10, 0))
+        name_var = tk.StringVar(value=rental_data.get("name", ""))
+        tk.Entry(editor_window, textvariable=name_var).pack(fill=tk.X, padx=10)
+
+        tk.Label(editor_window, text="Доп. информация:").pack(pady=(10, 0))
+        info_var = tk.StringVar(value=rental_data.get("info", ""))
+        tk.Entry(editor_window, textvariable=info_var).pack(fill=tk.X, padx=10)
+
+        def save_changes():
+            db_handler.db_query("UPDATE rentals SET client_name = ?, info = ? WHERE id = ?",
+                                (name_var.get().strip(), info_var.get().strip(), rental_data['id']))
+            editor_window.destroy()
+            on_save_callback()
+
+        tk.Button(editor_window, text="Сохранить", command=save_changes).pack(pady=20)
+
     def clear_input_fields(self):
         self.entry_name.delete(0, tk.END)
         self.entry_info.delete(0, tk.END)
@@ -327,7 +352,8 @@ class UIManager:
         self.entry_hours.delete(0, tk.END)
         self.entry_minutes.delete(0, tk.END)
 
-    def ask_duration(self):
+    def ask_duration_popup(self):
+        """Всплывающее окно для запроса длительности."""
         dialog = tk.Toplevel(self.master)
         dialog.title("Продлить на...")
         dialog.transient(self.master)

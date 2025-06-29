@@ -3,6 +3,9 @@ import logging
 import re
 import time
 import threading
+from datetime import datetime
+import pytz
+
 from FunPayAPI.account import Account
 from FunPayAPI.updater.runner import Runner
 from FunPayAPI.common.enums import EventTypes, SubCategoryTypes
@@ -10,6 +13,7 @@ from config import RENTAL_KEYWORDS, USE_EXPIRATION_GRACE_PERIOD, EXPIRATION_GRAC
 import db_handler
 from telegram_notifier import send_telegram_notification, send_telegram_alert
 import localization
+from utils import format_timedelta
 
 # Глобальная переменная для поочередной проверки игр
 game_check_index = 0
@@ -52,7 +56,6 @@ def sync_games_with_funpay_offers(account: Account):
 
             funpay_category_name = offer.subcategory.category.name.lower()
 
-            # ИСПРАВЛЕНИЕ: Проверка теперь работает в обе стороны.
             for db_game_id, db_game_name in db_games:
                 db_name_lower = db_game_name.lower()
                 if (db_name_lower in funpay_category_name) or (funpay_category_name in db_name_lower):
@@ -87,7 +90,8 @@ def update_offer_status_for_game(account: Account, game_id: int):
                                                g.funpay_offer_ids,
                                                (SELECT COUNT(*)
                                                 FROM accounts a
-                                                WHERE a.game_id = g.id AND a.rented_by IS NULL) as free_accounts
+                                                WHERE a.game_id = g.id
+                                                  AND a.rented_by IS NULL) as free_accounts
                                         FROM games g
                                         WHERE g.id = ?
                                         """, (game_id,), fetch="one")
@@ -133,12 +137,14 @@ def expired_rentals_checker(account: Account):
     """
     Фоновый процесс, который:
     1. Проверяет и обрабатывает истекшие аренды.
-    2. Поочередно проверяет по одной игре для синхронизации статусов лотов (для отлова ручных изменений).
+    2. Проверяет и отправляет 10-минутные напоминания.
+    3. Поочередно проверяет по одной игре для синхронизации статусов лотов (для отлова ручных изменений).
     """
     global game_check_index
     logging.info("[SYNC_CHECKER] Запущен объединенный проверщик статусов.")
     while True:
         try:
+            # 1. Обработка истекших аренд
             freed_game_ids = db_handler.check_and_process_expired_rentals()
             if freed_game_ids:
                 logging.info(f"[SYNC_CHECKER] Освобождены аккаунты для игр (game_ids): {freed_game_ids}.")
@@ -151,6 +157,23 @@ def expired_rentals_checker(account: Account):
                     else:
                         update_offer_status_for_game(account, game_id)
 
+            # 2. ИСПРАВЛЕНИЕ: Проверка и отправка 10-минутных напоминаний
+            reminders_to_send = db_handler.get_rentals_for_reminder()
+            if reminders_to_send:
+                logging.info(f"[REMINDER] Найдено {len(reminders_to_send)} аренд для отправки напоминаний.")
+                for rental_id, client_name, chat_id in reminders_to_send:
+                    lang = 'ru'
+                    reminder_text = localization.get_text('RENTAL_ENDING_SOON', lang)
+                    try:
+                        account.send_message(chat_id, reminder_text, chat_name=client_name)
+                        db_handler.mark_rental_as_reminded(rental_id)
+                        logging.info(
+                            f"[REMINDER] Напоминание для аренды {rental_id} успешно отправлено в чат {chat_id}.")
+                    except Exception as e:
+                        logging.error(f"[REMINDER] Не удалось отправить напоминание для аренды {rental_id}: {e}")
+                    time.sleep(2)  # Небольшая задержка между отправкой сообщений
+
+            # 3. Поочередная проверка статуса лотов
             all_games = db_handler.db_query("SELECT id FROM games", fetch="all")
             if all_games:
                 if game_check_index >= len(all_games):
@@ -181,6 +204,11 @@ def funpay_bot_listener(account, update_queue):
                     logging.info(f"[BOT] Обнаружен новый заказ #{order.id} от {order.buyer_username}.")
                     description_lower = order.description.lower()
 
+                    # Проверяем, содержит ли описание ключевые слова для аренды
+                    if not any(keyword in description_lower for keyword in RENTAL_KEYWORDS):
+                        logging.info(f"[BOT] Заказ #{order.id} проигнорирован (не является арендой).")
+                        continue
+
                     all_games_in_db = db_handler.get_all_game_names()
                     detected_game_name = next((game for game in all_games_in_db if game.lower() in description_lower),
                                               None)
@@ -199,7 +227,7 @@ def funpay_bot_listener(account, update_queue):
                     time_value = int(match.group(1))
                     time_unit = match.group(2)
                     total_minutes = (time_value * 1440) if time_unit in ['д', 'дней', 'день', 'day', 'days'] else (
-                                time_value * 60)
+                            time_value * 60)
                     total_minutes *= order.amount
 
                     rental_data = db_handler.rent_account(detected_game_name, order.buyer_username, total_minutes,
@@ -219,6 +247,83 @@ def funpay_bot_listener(account, update_queue):
                         account.send_message(order.chat_id, response_text, chat_name=order.buyer_username)
                         send_telegram_alert(
                             f"НЕТ СВОБОДНЫХ АККАУНТОВ для '{detected_game_name}' по заказу `#{order.id}`.")
+
+                # ИСПРАВЛЕНИЕ: Добавлен блок обработки команд из чата
+                elif event.type == EventTypes.NEW_MESSAGE:
+                    message = event.message
+                    # Игнорируем свои же сообщения
+                    if message.author_id == account.id or not message.text:
+                        continue
+
+                    logging.info(f"[BOT] Новое сообщение от '{message.author}': {message.text}")
+                    lang = 'ru'  # или можно добавить логику определения языка
+                    cmd_text = message.text.lower().strip()
+
+                    # Команда !помощь
+                    if cmd_text == '!помощь' or cmd_text == '!help':
+                        logging.info(f"[BOT] Получена команда !помощь от {message.author}")
+                        help_text = localization.get_text('HELP_MESSAGE', lang)
+                        account.send_message(message.chat_id, help_text, chat_name=message.author)
+
+                    # Команда !игры
+                    elif cmd_text == '!игры' or cmd_text == '!games':
+                        logging.info(f"[BOT] Получена команда !игры от {message.author}")
+                        stats = db_handler.get_games_stats()
+                        if not stats:
+                            response = localization.get_text('NO_GAMES_AVAILABLE', lang)
+                        else:
+                            response = localization.get_text('GAMES_HEADER', lang) + "\n"
+                            response += "\n".join([f"• {name}: {total} / {free}" for name, total, free in stats])
+                        account.send_message(message.chat_id, response, chat_name=message.author)
+
+                    # Команда !время
+                    elif cmd_text == '!время' or cmd_text == '!time':
+                        logging.info(f"[BOT] Получена команда !время от {message.author}")
+                        rental_info = db_handler.get_user_rental_info(message.author)
+                        if not rental_info:
+                            response = localization.get_text('NO_ACTIVE_RENTALS', lang)
+                        else:
+                            end_time_str = rental_info[0]
+                            end_time = datetime.fromisoformat(end_time_str)
+                            now = datetime.now()
+                            if end_time < now:
+                                response = localization.get_text('RENTAL_EXPIRED', lang)
+                            else:
+                                remaining = end_time - now
+                                msk_tz = pytz.timezone('Europe/Moscow')
+                                utc_tz = pytz.utc
+                                end_time_msk = end_time.astimezone(msk_tz).strftime('%Y-%m-%d %H:%M:%S')
+                                end_time_utc = end_time.astimezone(utc_tz).strftime('%Y-%m-%d %H:%M:%S')
+                                response = localization.get_text('RENTAL_INFO', lang).format(
+                                    remaining_time=format_timedelta(remaining),
+                                    end_time_msk=end_time_msk,
+                                    end_time_utc=end_time_utc
+                                )
+                        account.send_message(message.chat_id, response, chat_name=message.author)
+
+                    # Команда !продлить
+                    elif cmd_text.startswith('!продлить') or cmd_text.startswith('!extend'):
+                        logging.info(f"[BOT] Получена команда !продлить от {message.author}")
+                        parts = cmd_text.split()
+                        if len(parts) < 2 or not parts[1].isdigit():
+                            response = localization.get_text('INVALID_EXTEND_FORMAT', lang)
+                        else:
+                            hours_to_add = int(parts[1])
+                            new_end_time = db_handler.extend_user_rental(message.author, hours_to_add)
+                            if not new_end_time:
+                                response = localization.get_text('NO_RENTAL_TO_EXTEND', lang)
+                            else:
+                                msk_tz = pytz.timezone('Europe/Moscow')
+                                utc_tz = pytz.utc
+                                end_time_msk = new_end_time.astimezone(msk_tz).strftime('%Y-%m-%d %H:%M:%S')
+                                end_time_utc = new_end_time.astimezone(utc_tz).strftime('%Y-%m-%d %H:%M:%S')
+                                response = localization.get_text('EXTEND_SUCCESS', lang).format(
+                                    hours=hours_to_add,
+                                    end_time_msk=end_time_msk,
+                                    end_time_utc=end_time_utc
+                                )
+                        account.send_message(message.chat_id, response, chat_name=message.author)
+
         except Exception as e:
             logging.exception(f"[BOT_LISTENER] Критическая ошибка в главном цикле.")
             send_telegram_alert(f"Критическая ошибка в FunPay Listener:\n\n{e}")
