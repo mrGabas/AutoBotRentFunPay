@@ -4,5 +4,6 @@
 # True = бот активен, False = "ручной режим"
 is_bot_enabled = True
 
-# Флаг для запроса на деактивацию всех лотов
-deactivate_all_lots_requested = False
+# True = бот может управлять (включать/выключать) лотами.
+# False = бот может ТОЛЬКО выключать лоты, но никогда не включит их.
+are_lots_enabled = True

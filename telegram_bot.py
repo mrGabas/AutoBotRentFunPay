@@ -1,8 +1,9 @@
 # telegram_bot.py
 import logging
 from telegram import Update, Bot, ParseMode
-from telegram.ext import Updater, CommandHandler, CallbackContext
+from telegram.ext import Updater, CommandHandler, CallbackContext, JobQueue
 from telegram.error import TelegramError
+from queue import Queue
 
 import db_handler
 import config
@@ -11,55 +12,97 @@ from utils import format_timedelta
 from datetime import datetime
 
 # --- Глобальные переменные ---
-BOT_INSTANCE = None
-UPDATER_INSTANCE = None
+BOT_INSTANCE: Bot = None
+UPDATER_INSTANCE: Updater = None
+TG_SEND_QUEUE: Queue = None
 
 
-# --- Основные функции ---
+# --- Функции для отправки сообщений из других модулей ---
+
+def send_telegram_notification(message: str):
+    """Отправляет обычное уведомление администратору."""
+    if TG_SEND_QUEUE:
+        TG_SEND_QUEUE.put({'type': 'info', 'text': message})
+
+
+def send_telegram_alert(message: str):
+    """Отправляет важное уведомление (alert) администратору."""
+    if TG_SEND_QUEUE:
+        TG_SEND_QUEUE.put({'type': 'alert', 'text': message})
+
+
+# --- Логика работы самого бота ---
+
+def _send_message_from_queue(context: CallbackContext):
+    """Обрабатывает очередь сообщений и отправляет их."""
+    if not TG_SEND_QUEUE.empty():
+        item = TG_SEND_QUEUE.get()
+        text = item.get('text', 'Пустое сообщение')
+        if item.get('type') == 'alert':
+            text = f"🚨 **ВНИМАНИЕ** 🚨\n\n{text}"
+
+        try:
+            context.bot.send_message(
+                chat_id=config.TELEGRAM_ADMIN_CHAT_ID,
+                text=text,
+                parse_mode=ParseMode.HTML
+            )
+        except TelegramError as e:
+            logging.error(f"[TG_BOT_SENDER] Не удалось отправить сообщение: {e}")
+        finally:
+            TG_SEND_QUEUE.task_done()
+
 
 def start_bot():
-    global BOT_INSTANCE, UPDATER_INSTANCE
+    """Инициализирует и запускает Telegram-бота и очередь отправки."""
+    global BOT_INSTANCE, UPDATER_INSTANCE, TG_SEND_QUEUE
     if not config.TELEGRAM_BOT_TOKEN:
         logging.warning("[TG_BOT] Токен Telegram-бота не указан. Бот не будет запущен.")
         return
 
     try:
-        BOT_INSTANCE = Bot(token=config.TELEGRAM_BOT_TOKEN)
         if not config.TELEGRAM_ADMIN_CHAT_ID:
             logging.error("[TG_BOT] TELEGRAM_ADMIN_CHAT_ID не указан. Бот не может работать.")
             return
 
+        BOT_INSTANCE = Bot(token=config.TELEGRAM_BOT_TOKEN)
         UPDATER_INSTANCE = Updater(bot=BOT_INSTANCE, use_context=True)
         dp = UPDATER_INSTANCE.dispatcher
 
+        # Создаем очередь для отправки сообщений и запускаем ее обработчик
+        TG_SEND_QUEUE = Queue()
+        job_queue: JobQueue = UPDATER_INSTANCE.job_queue
+        job_queue.run_repeating(_send_message_from_queue, interval=1, first=0)
+
         # Регистрация обработчиков команд
         dp.add_handler(CommandHandler("start", start_command))
-        dp.add_handler(CommandHandler("stats", stats_command))
-        dp.add_handler(CommandHandler("rentals", rentals_command))
-        dp.add_handler(CommandHandler("games", games_command))
         dp.add_handler(CommandHandler("enable", enable_bot_command))
         dp.add_handler(CommandHandler("disable", disable_bot_command))
         dp.add_handler(CommandHandler("status", status_command))
-        dp.add_handler(CommandHandler("disable_lots", disable_all_lots_command))
+        dp.add_handler(CommandHandler("enable_lots", enable_lots_command))
+        dp.add_handler(CommandHandler("disable_lots", disable_lots_command))
+        dp.add_handler(CommandHandler("stats", stats_command))
+        dp.add_handler(CommandHandler("rentals", rentals_command))
+        dp.add_handler(CommandHandler("games", games_command))
 
         UPDATER_INSTANCE.start_polling()
-        logging.info("[TG_BOT] Telegram-бот успешно запущен.")
+        logging.info("[TG_BOT] Telegram-бот и обработчик очереди успешно запущены.")
 
     except (TelegramError, ValueError) as e:
         logging.error(f"[TG_BOT] Ошибка запуска Telegram-бота: {e}")
 
 
 def stop_bot():
+    """Останавливает Telegram-бота."""
     if UPDATER_INSTANCE:
         UPDATER_INSTANCE.stop()
         logging.info("[TG_BOT] Telegram-бот остановлен.")
 
 
+# ... (декоратор admin_only и все команды остаются такими же, как в прошлой версии) ...
 def admin_only(func):
     def wrapped(update: Update, context: CallbackContext, *args, **kwargs):
-        user_id = update.effective_user.id
-        if str(user_id) != str(config.TELEGRAM_ADMIN_CHAT_ID):
-            logging.warning(f"[TG_BOT] Доступ запрещен для пользователя {user_id}.")
+        if str(update.effective_user.id) != str(config.TELEGRAM_ADMIN_CHAT_ID):
             update.message.reply_text("⛔️ У вас нет прав для выполнения этой команды.")
             return
         return func(update, context, *args, **kwargs)
@@ -67,25 +110,23 @@ def admin_only(func):
     return wrapped
 
 
-# --- Обработчики команд ---
-
 @admin_only
 def start_command(update: Update, context: CallbackContext):
     user_name = update.effective_user.first_name
     help_text = (
         f"👋 Привет, {user_name}!\n\n"
-        "Бот для управления арендами. Доступные команды:\n\n"
         "<b>Управление ботом:</b>\n"
-        "/enable - ✅ Включить автоматический режим.\n"
-        "/disable - ⛔️ Выключить (ручной режим).\n"
-        "/status - ℹ️ Узнать текущий статус бота.\n"
-        "/disable_lots - 🚫 Отключить ВСЕ лоты аренды.\n\n"
-        "<b>Статистика:</b>\n"
+        "/enable - ✅ Включить бота (авторежим).\n"
+        "/disable - ⛔️ Выключить бота (ручной режим).\n\n"
+        "<b>Управление лотами:</b>\n"
+        "/enable_lots - ✅ Разрешить боту включать лоты.\n"
+        "/disable_lots - 🚫 Запретить боту включать лоты.\n\n"
+        "<b>Информация:</b>\n"
+        "/status - ℹ️ Узнать текущий статус.\n"
         "/stats - Общая статистика.\n"
         "/rentals - Активные аренды.\n"
         "/games - Статистика по играм."
     )
-    # <<< ИСПРАВЛЕНИЕ: Используем ParseMode.HTML >>>
     update.message.reply_text(help_text, parse_mode=ParseMode.HTML)
 
 
@@ -99,46 +140,52 @@ def enable_bot_command(update: Update, context: CallbackContext):
 @admin_only
 def disable_bot_command(update: Update, context: CallbackContext):
     state_manager.is_bot_enabled = False
-    logging.warning("[TG_BOT] Бот ВЫКЛЮЧЕН администратором. Переход в ручной режим.")
-    update.message.reply_text("⛔️ Бот выключен. Новые заказы и сообщения FunPay будут игнорироваться.")
+    logging.warning("[TG_BOT] Бот ВЫКЛЮЧЕН администратором.")
+    update.message.reply_text("⛔️ Бот выключен. Новые события FunPay будут игнорироваться.")
 
 
 @admin_only
 def status_command(update: Update, context: CallbackContext):
-    if state_manager.is_bot_enabled:
-        update.message.reply_text("✅ Бот сейчас включен (автоматический режим).")
-    else:
-        update.message.reply_text("⛔️ Бот сейчас выключен (ручной режим).")
+    bot_status = "✅ Включен (авто)" if state_manager.is_bot_enabled else "⛔️ Выключен (ручной)"
+    lot_status = "✅ Включено" if state_manager.are_lots_enabled else "🚫 Отключено"
+    message = (
+        f"<b>Текущий статус:</b>\n\n"
+        f"Состояние бота: {bot_status}\n"
+        f"Управление лотами: {lot_status}"
+    )
+    update.message.reply_text(message, parse_mode=ParseMode.HTML)
 
 
 @admin_only
-def disable_all_lots_command(update: Update, context: CallbackContext):
-    state_manager.deactivate_all_lots_requested = True
-    logging.info("[TG_BOT] Администратор запросил отключение всех лотов.")
-    update.message.reply_text("⏳ Запрос принят. Отключаю все лоты аренды... Это может занять до минуты.")
+def enable_lots_command(update: Update, context: CallbackContext):
+    state_manager.are_lots_enabled = True
+    logging.info("[TG_BOT] Управление лотами ВКЛЮЧЕНО.")
+    update.message.reply_text(
+        "✅ Управление лотами включено. Бот будет автоматически активировать лоты при наличии свободных аккаунтов.")
+
+
+@admin_only
+def disable_lots_command(update: Update, context: CallbackContext):
+    state_manager.are_lots_enabled = False
+    logging.warning("[TG_BOT] Управление лотами ВЫКЛЮЧЕНО.")
+    update.message.reply_text(
+        "🚫 Управление лотами выключено. Бот больше не будет поднимать лоты. Для принудительного отключения всех активных лотов перезапустите серверного бота.")
 
 
 @admin_only
 def stats_command(update: Update, context: CallbackContext):
     try:
-        total_accounts = db_handler.db_query("SELECT COUNT(*) FROM accounts", fetch="one")[0]
-        rented_accounts = db_handler.db_query("SELECT COUNT(*) FROM accounts WHERE rented_by IS NOT NULL", fetch="one")[
-            0]
-        free_accounts = total_accounts - rented_accounts
-        total_rentals = db_handler.db_query("SELECT COUNT(*) FROM rentals WHERE is_history = 0", fetch="one")[0]
-
-        # <<< ИСПРАВЛЕНИЕ: Используем HTML-теги >>>
+        total = db_handler.db_query("SELECT COUNT(*) FROM accounts", fetch="one")[0]
+        rented = db_handler.db_query("SELECT COUNT(*) FROM accounts WHERE rented_by IS NOT NULL", fetch="one")[0]
         stats_text = (
-            "📊 <b>Общая статистика</b>\n\n"
-            f"Всего аккаунтов: <b>{total_accounts}</b>\n"
-            f"✅ Свободно: <b>{free_accounts}</b>\n"
-            f"❌ Занято: <b>{rented_accounts}</b>\n\n"
-            f"Активных аренд: <b>{total_rentals}</b>"
+            f"📊 <b>Общая статистика</b>\n\n"
+            f"Всего аккаунтов: <b>{total}</b>\n"
+            f"✅ Свободно: <b>{total - rented}</b>\n"
+            f"❌ Занято: <b>{rented}</b>"
         )
         update.message.reply_text(stats_text, parse_mode=ParseMode.HTML)
     except Exception as e:
-        logging.error(f"[TG_BOT] Ошибка при получении статистики: {e}")
-        update.message.reply_text("❌ Не удалось получить статистику.")
+        update.message.reply_text(f"❌ Ошибка получения статистики: {e}")
 
 
 @admin_only
@@ -152,17 +199,13 @@ def rentals_command(update: Update, context: CallbackContext):
                                       WHERE r.is_history = 0
                                       ORDER BY r.end_time ASC
                                       """, fetch="all")
-
         if not rentals:
             update.message.reply_text("✅ Активных аренд нет.")
             return
 
-        # <<< ИСПРАВЛЕНИЕ: Используем HTML-теги >>>
         message = "📋 <b>Список активных аренд:</b>\n\n"
-        now = datetime.now()
         for client, game, end_time_iso, login in rentals:
-            end_time = datetime.fromisoformat(end_time_iso)
-            remaining = end_time - now
+            remaining = datetime.fromisoformat(end_time_iso) - datetime.now()
             message += (
                 f"👤 <i>{client}</i> ({game})\n"
                 f"   Аккаунт: <code>{login}</code>\n"
@@ -170,8 +213,7 @@ def rentals_command(update: Update, context: CallbackContext):
             )
         update.message.reply_text(message, parse_mode=ParseMode.HTML)
     except Exception as e:
-        logging.error(f"[TG_BOT] Ошибка при получении списка аренд: {e}")
-        update.message.reply_text("❌ Не удалось получить список аренд.")
+        update.message.reply_text(f"❌ Ошибка получения аренд: {e}")
 
 
 @admin_only
@@ -182,11 +224,9 @@ def games_command(update: Update, context: CallbackContext):
             update.message.reply_text("В базе данных нет игр.")
             return
 
-        # <<< ИСПРАВЛЕНИЕ: Используем HTML-теги >>>
         message = "🎮 <b>Статистика по играм (Всего / Свободно):</b>\n\n"
         for name, total, free in stats:
             message += f"• <i>{name}</i>:  <code>{total} / {free}</code>\n"
         update.message.reply_text(message, parse_mode=ParseMode.HTML)
     except Exception as e:
-        logging.error(f"[TG_BOT] Ошибка при получении статистики по играм: {e}")
-        update.message.reply_text("❌ Не удалось получить статистику по играм.")
+        update.message.reply_text(f"❌ Ошибка получения игр: {e}")
