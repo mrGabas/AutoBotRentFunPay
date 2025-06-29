@@ -2492,3 +2492,89 @@ AttributeError: 'Account' object has no attribute 'get_offers'
 2025-06-29 00:23:30,836 - INFO - [sync_games_with_funpay_offers] - [SYNC] Автоматическая синхронизация ID лотов завершена.
 2025-06-29 00:23:30,836 - INFO - [sync_games_with_funpay_offers] - [SYNC_CHECK] Запуск первичной проверки статусов всех лотов.
 2025-06-29 00:23:30,836 - INFO - [update_offer_status_for_game] - [OFFER_MANAGER] Проверка для 'Among us'. Свободно: 1. Лоты: {45198131, 45197907, 45198479}
+2025-06-29 00:43:17,871 - INFO - [main] - ==============================
+2025-06-29 00:43:17,871 - INFO - [main] - Начало запуска серверного бота...
+2025-06-29 00:43:17,871 - INFO - [initialize_and_update_db] - Проверка и инициализация базы данных...
+2025-06-29 00:43:17,872 - INFO - [initialize_and_update_db] - Схема базы данных актуальна.
+2025-06-29 00:43:17,872 - INFO - [main] - Авторизация на FunPay как 'None' (ID: None).
+2025-06-29 00:43:17,872 - INFO - [sync_games_with_funpay_offers] - [SYNC] Запуск синхронизации игр с лотами FunPay.
+2025-06-29 00:43:17,873 - ERROR - [sync_games_with_funpay_offers] - [SYNC] Ошибка во время синхронизации игр с лотами.
+Traceback (most recent call last):
+  File "C:\Users\mrGabas\Desktop\rent\V1.003\bot_handler.py", line 34, in sync_games_with_funpay_offers
+    user_profile = account.get_user(account.id)
+  File "C:\Users\mrGabas\Desktop\rent\V1.003\FunPayAPI\account.py", line 1070, in get_user
+    raise exceptions.AccountNotInitiatedError()
+FunPayAPI.common.exceptions.AccountNotInitiatedError: Необходимо получить данные об аккаунте с помощью метода Account.get()
+2025-06-29 00:43:17,875 - INFO - [main] - Поток прослушивания FunPay запущен.
+2025-06-29 00:43:17,876 - INFO - [expired_rentals_checker] - [SYNC_CHECKER] Запущен объединенный проверщик статусов.
+2025-06-29 00:43:17,876 - INFO - [main] - Поток проверки статусов запущен.
+2025-06-29 00:44:22,457 - INFO - [main] - ==============================
+2025-06-29 00:44:22,458 - INFO - [main] - Начало запуска серверного бота...
+2025-06-29 00:44:22,458 - INFO - [initialize_and_update_db] - Проверка и инициализация базы данных...
+2025-06-29 00:44:22,459 - INFO - [initialize_and_update_db] - Схема базы данных актуальна.
+2025-06-29 00:44:22,460 - INFO - [main] - Авторизация на FunPay как 'None' (ID: None).
+2025-06-29 00:44:22,460 - INFO - [sync_games_with_funpay_offers] - [SYNC] Запуск синхронизации игр с лотами FunPay.
+2025-06-29 00:44:22,461 - ERROR - [sync_games_with_funpay_offers] - [SYNC] Ошибка во время синхронизации игр с лотами.
+Traceback (most recent call last):
+  File "C:\Users\mrGabas\Desktop\rent\V1.003\bot_handler.py", line 34, in sync_games_with_funpay_offers
+    user_profile = account.get_user(account.id)
+  File "C:\Users\mrGabas\Desktop\rent\V1.003\FunPayAPI\account.py", line 1070, in get_user
+    raise exceptions.AccountNotInitiatedError()
+FunPayAPI.common.exceptions.AccountNotInitiatedError: Необходимо получить данные об аккаунте с помощью метода Account.get()
+2025-06-29 00:44:22,462 - INFO - [main] - Поток прослушивания FunPay запущен.
+2025-06-29 00:44:22,463 - INFO - [expired_rentals_checker] - [SYNC_CHECKER] Запущен объединенный проверщик статусов.
+2025-06-29 00:44:22,463 - INFO - [main] - Поток проверки статусов запущен.
+2025-06-29 00:44:33,202 - INFO - [main] - ==============================
+2025-06-29 00:44:33,203 - INFO - [main] - Начало запуска серверного бота...
+2025-06-29 00:44:33,203 - INFO - [initialize_and_update_db] - Проверка и инициализация базы данных...
+2025-06-29 00:44:33,204 - INFO - [initialize_and_update_db] - Схема базы данных актуальна.
+2025-06-29 00:44:33,204 - INFO - [main] - Авторизация на FunPay как 'None' (ID: None).
+2025-06-29 00:44:33,204 - INFO - [sync_games_with_funpay_offers] - [SYNC] Запуск синхронизации игр с лотами FunPay.
+2025-06-29 00:44:33,205 - ERROR - [sync_games_with_funpay_offers] - [SYNC] Ошибка во время синхронизации игр с лотами.
+Traceback (most recent call last):
+  File "C:\Users\mrGabas\Desktop\rent\V1.003\bot_handler.py", line 34, in sync_games_with_funpay_offers
+    user_profile = account.get_user(account.id)
+  File "C:\Users\mrGabas\Desktop\rent\V1.003\FunPayAPI\account.py", line 1070, in get_user
+    raise exceptions.AccountNotInitiatedError()
+FunPayAPI.common.exceptions.AccountNotInitiatedError: Необходимо получить данные об аккаунте с помощью метода Account.get()
+2025-06-29 00:44:33,207 - INFO - [main] - Поток прослушивания FunPay запущен.
+2025-06-29 00:44:33,207 - INFO - [expired_rentals_checker] - [SYNC_CHECKER] Запущен объединенный проверщик статусов.
+2025-06-29 00:44:33,207 - INFO - [main] - Поток проверки статусов запущен.
+2025-06-29 00:46:27,611 - INFO - [main] - ==============================
+2025-06-29 00:46:27,611 - INFO - [main] - Начало запуска серверного бота...
+2025-06-29 00:46:27,612 - INFO - [initialize_and_update_db] - Проверка и инициализация базы данных...
+2025-06-29 00:46:27,613 - INFO - [initialize_and_update_db] - Схема базы данных актуальна.
+2025-06-29 00:46:29,865 - INFO - [main] - Авторизация на FunPay как 'mrGabas' (ID: 13999623).
+2025-06-29 00:46:29,865 - INFO - [sync_games_with_funpay_offers] - [SYNC] Запуск синхронизации игр с лотами FunPay.
+2025-06-29 00:46:32,392 - INFO - [sync_games_with_funpay_offers] - [SYNC] Найдено 936 лотов на аккаунте. Начинаю анализ.
+2025-06-29 00:46:32,399 - INFO - [sync_games_with_funpay_offers] - [SYNC] Автоматическая синхронизация ID лотов завершена.
+2025-06-29 00:46:32,399 - INFO - [sync_games_with_funpay_offers] - [SYNC_CHECK] Запуск первичной проверки статусов всех лотов.
+2025-06-29 00:46:32,400 - INFO - [update_offer_status_for_game] - [OFFER_MANAGER] Проверка для 'Among us'. Свободно: 1. Лоты: {45198131, 45197907, 45198479}
+2025-06-29 00:46:38,207 - INFO - [update_offer_status_for_game] - [OFFER_MANAGER] Проверка для 'Battlefield 5'. Свободно: 1. Лоты: {45214968, 45214895}
+2025-06-29 00:46:43,065 - INFO - [update_offer_status_for_game] - [OFFER_MANAGER] Проверка для 'Dead by Daylight: Five Nights at Freddy's'. Свободно: 1. Лоты: {44951058, 44951029, 44951071}
+2025-06-29 00:46:48,871 - INFO - [update_offer_status_for_game] - [OFFER_MANAGER] Проверка для 'PEAK'. Свободно: 1. Лоты: {45197606, 45168881, 45169134, 45169158}
+2025-06-29 00:46:58,642 - INFO - [update_offer_status_for_game] - [OFFER_MANAGER] Проверка для 'STAR WARS Battlefront 2'. Свободно: 1. Лоты: {45322759}
+2025-06-29 00:47:02,590 - INFO - [sync_games_with_funpay_offers] - [SYNC_CHECK] Первичная проверка статусов лотов завершена.
+2025-06-29 00:47:02,591 - INFO - [funpay_bot_listener] - FunPay обработчик событий запущен.
+2025-06-29 00:47:02,591 - INFO - [main] - Поток прослушивания FunPay запущен.
+2025-06-29 00:47:02,592 - INFO - [expired_rentals_checker] - [SYNC_CHECKER] Запущен объединенный проверщик статусов.
+2025-06-29 00:47:02,592 - INFO - [main] - Поток проверки статусов запущен.
+2025-06-29 00:47:02,593 - WARNING - [__init__] - Connection pool of Request object is smaller than optimal value (8)
+2025-06-29 00:47:02,594 - INFO - [start] - Scheduler started
+2025-06-29 00:47:02,603 - INFO - [expired_rentals_checker] - [SYNC_CHECKER] Освобождены аккаунты для игр (game_ids): {4}.
+2025-06-29 00:47:02,603 - INFO - [expired_rentals_checker] - [SYNC_CHECKER] Установлена пауза 10 мин. для game_id 4.
+2025-06-29 00:47:02,604 - INFO - [expired_rentals_checker] - [REMINDER] Найдено 1 аренд для отправки напоминаний.
+2025-06-29 00:47:03,533 - INFO - [start_bot] - [TG_BOT] Telegram-бот успешно запущен.
+2025-06-29 00:47:03,549 - INFO - [expired_rentals_checker] - [REMINDER] Напоминание для аренды ef32efae-9665-44ad-b30e-a49941d6e8d6 успешно отправлено в чат users-13999623-14720668.
+2025-06-29 00:47:05,556 - INFO - [update_offer_status_for_game] - [OFFER_MANAGER] Проверка для 'Among us'. Свободно: 1. Лоты: {45198131, 45197907, 45198479}
+2025-06-29 00:47:13,990 - WARNING - [_put_conn] - Connection pool is full, discarding connection: api.telegram.org
+2025-06-29 00:47:20,234 - INFO - [<module>] - ==============================
+2025-06-29 00:47:20,234 - INFO - [<module>] - Запуск GUI клиента...
+2025-06-29 00:47:20,235 - INFO - [initialize_and_update_db] - Проверка и инициализация базы данных...
+2025-06-29 00:47:20,237 - INFO - [initialize_and_update_db] - Схема базы данных актуальна.
+2025-06-29 00:47:20,857 - INFO - [full_update] - Интерфейс обновлен.
+2025-06-29 00:47:20,895 - INFO - [__init__] - GUI приложение успешно инициализировано.
+2025-06-29 00:48:07,713 - INFO - [full_update] - Интерфейс обновлен.
+2025-06-29 00:48:08,389 - INFO - [update_offer_status_for_game] - [OFFER_MANAGER] Проверка для 'Battlefield 5'. Свободно: 1. Лоты: {45214968, 45214895}
+2025-06-29 00:48:38,614 - INFO - [full_update] - Интерфейс обновлен.
+2025-06-29 00:48:40,613 - INFO - [on_closing] - Приложение закрыто.
