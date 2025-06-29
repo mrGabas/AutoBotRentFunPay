@@ -30,6 +30,8 @@ def main():
     console_handler.setFormatter(log_formatter)
     root_logger.addHandler(console_handler)
 
+    logging.getLogger('apscheduler').setLevel(logging.WARNING)
+
     logging.info("=" * 30)
     logging.info("Начало запуска серверного бота...")
 
