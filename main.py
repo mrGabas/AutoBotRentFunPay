@@ -163,6 +163,24 @@ class RentalApp:
             (new_name, new_info, rental_id)
         )
 
+    def edit_account(self):
+        """Открывает окно редактирования для выбранного аккаунта."""
+        selection = self.ui.accounts_tree.selection()
+        if not selection:
+            messagebox.showerror("Ошибка", "Сначала выберите аккаунт для редактирования.")
+            return
+
+        account_id = selection[0]
+        account_to_edit = next((acc for acc in self.accounts if acc["id"] == int(account_id)), None)
+
+        if account_to_edit:
+            self.ui.show_account_editor_window(account_to_edit, self.full_update)
+        else:
+            messagebox.showerror("Ошибка", "Не удалось найти данные аккаунта.")
+
+    def update_account_details(self, account_id, new_login, new_password):
+        """Обновляет логин и пароль аккаунта в БД."""
+        db_handler.update_account(account_id, new_login, new_password)
     def start_gui_tasks(self):
         gui_checker_thread = threading.Thread(target=background_checker, args=(self.rentals, self.update_queue),
                                               daemon=True)

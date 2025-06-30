@@ -7,6 +7,13 @@ import csv
 from config import DB_FILE
 from database import db_query, init_database
 
+def update_account(account_id, new_login, new_password):
+    """Обновляет логин и пароль для указанного ID аккаунта."""
+    db_query(
+        "UPDATE accounts SET login = ?, password = ? WHERE id = ?",
+        (new_login, new_password, account_id)
+    )
+    logging.info(f"Аккаунт ID:{account_id} успешно обновлен. Новый логин: {new_login}")
 
 def _check_column_exists(cursor, table_name, column_name):
     """Проверяет наличие колонки в таблице."""

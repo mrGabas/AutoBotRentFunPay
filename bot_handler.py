@@ -193,6 +193,75 @@ def expired_rentals_checker(account: Account):
             logging.exception(f"Ошибка в процессе фоновой синхронизации статусов.")
         time.sleep(60)
 
+def expired_rentals_checker(account: Account):
+    """
+    Фоновый процесс, который:
+    1. Проверяет и отправляет 10-минутные напоминания.
+    2. Проверяет и обрабатывает истекшие аренды.
+    3. Применяет 10-минутную задержку перед повторной активацией лота.
+    4. Выполняет принудительное отключение лотов по команде.
+    5. Поочередно проверяет по одной игре для синхронизации статусов лотов.
+    """
+    logging.info("[CHECKER] Запущен объединенный проверщик статусов.")
+    game_ids = [g[0] for g in db_handler.db_query("SELECT id FROM games", fetch="all")]
+    game_check_index = 0
+
+    while True:
+        try:
+            # 1. Выполнение команды на принудительное отключение лотов
+            if state_manager.force_deactivate_all_lots_requested:
+                _force_deactivate_all_lots(account)
+                state_manager.force_deactivate_all_lots_requested = False
+
+            if not state_manager.is_bot_enabled:
+                time.sleep(30)
+                continue
+
+            # 2. Проверка и отправка 10-минутных напоминаний
+            reminders_to_send = db_handler.get_rentals_for_reminder()
+            if reminders_to_send:
+                logging.info(f"[CHECKER_REMINDER] Найдено {len(reminders_to_send)} аренд для отправки напоминаний.")
+                for rental_id, client_name, chat_id in reminders_to_send:
+                    lang = 'ru'
+                    reminder_text = localization.get_text('RENTAL_ENDING_SOON', lang)
+                    try:
+                        account.send_message(chat_id, reminder_text, chat_name=client_name)
+                        db_handler.mark_rental_as_reminded(rental_id)
+                        logging.info(
+                            f"[CHECKER_REMINDER] Напоминание для аренды {rental_id} успешно отправлено в чат {chat_id}.")
+                    except Exception as e:
+                        logging.error(
+                            f"[CHECKER_REMINDER] Не удалось отправить напоминание для аренды {rental_id}: {e}")
+                    time.sleep(2)
+
+            # 3. Обработка истекших аренд
+            freed_game_ids = db_handler.check_and_process_expired_rentals()
+            if freed_game_ids:
+                logging.info(f"[CHECKER_EXPIRED] Освобождены аккаунты для игр (game_ids): {freed_game_ids}.")
+                for game_id in freed_game_ids:
+                    # Применяем задержку, если она включена в конфиге
+                    if USE_EXPIRATION_GRACE_PERIOD:
+                        delay = EXPIRATION_GRACE_PERIOD_MINUTES * 60
+                        logging.info(
+                            f"[CHECKER_GRACE] Установлена пауза {EXPIRATION_GRACE_PERIOD_MINUTES} мин. перед активацией лотов для game_id {game_id}.")
+                        threading.Timer(delay, update_offer_status_for_game, args=[account, game_id]).start()
+                    else:
+                        # Если задержка выключена, активируем сразу
+                        update_offer_status_for_game(account, game_id)
+
+            # 4. Поочередная проверка статусов лотов для отлова ручных изменений
+            if game_ids:
+                if game_check_index >= len(game_ids):
+                    game_check_index = 0
+
+                current_game_id = game_ids[game_check_index]
+                if current_game_id not in freed_game_ids:
+                    update_offer_status_for_game(account, current_game_id)
+
+                game_check_index += 1
+        except Exception as e:
+            logging.exception(f"Ошибка в процессе фоновой синхронизации статусов.")
+        time.sleep(60)
 
 def funpay_bot_listener(account, update_queue):
     """Основной обработчик событий FunPay."""

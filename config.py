@@ -26,3 +26,8 @@ TELEGRAM_ADMIN_CHAT_ID = "1123028915"
 USE_EXPIRATION_GRACE_PERIOD = True
 EXPIRATION_GRACE_PERIOD_MINUTES = 10
 RENTAL_KEYWORDS = ['аренда', 'час', 'часа', 'часов', 'h', 'day', 'days', 'день', 'дня', 'дней']
+
+# Использовать задержку перед повторной активацией лота после окончания аренды?
+USE_EXPIRATION_GRACE_PERIOD = True
+# Длительность задержки в минутах.
+EXPIRATION_GRACE_PERIOD_MINUTES = 10
