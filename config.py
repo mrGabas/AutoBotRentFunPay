@@ -1,7 +1,8 @@
 # config.py
 import os
 import sys
-
+from dotenv import load_dotenv
+load_dotenv()
 # --- ОБЩИЕ НАСТРОЙКИ ---
 if getattr(sys, 'frozen', False):
     # Если приложение скомпилировано в .exe
@@ -15,11 +16,11 @@ LOG_FILE = os.path.join(SAVE_FOLDER, 'rentals_app.log')
 
 
 # --- НАСТРОЙКИ СЕРВЕРНОГО БОТА ---
-GOLDEN_KEY = "vuk6fbc3ohrmul1c8wjluxbot71lxdbt"
+GOLDEN_KEY = os.getenv("GOLDEN_KEY")
 USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
 
 # --- ДАННЫЕ ДЛЯ TELEGRAM ---
-TELEGRAM_BOT_TOKEN = "8111203333:AAEs218XsXhj4jwhoAP3vuaQLahtgkjBi00"
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 TELEGRAM_ADMIN_CHAT_ID = "1123028915"
 
 # --- НАСТРОЙКИ УПРАВЛЕНИЯ ЛОТАМИ ---
