@@ -1,3 +1,4 @@
+# run_bot.py
 import logging
 import os
 import threading
@@ -6,7 +7,7 @@ import time
 from FunPayAPI.account import Account
 import config
 import db_handler
-from bot_handler import funpay_bot_listener, expired_rentals_checker
+from bot_handler import funpay_bot_listener, expired_rentals_checker, sync_games_with_funpay_offers
 import telegram_bot
 import shared
 
@@ -37,10 +38,10 @@ def main():
         logging.critical(f"Не удалось авторизоваться на FunPay. Проверьте токен. Ошибка: {e}")
         return
 
-    # --- ИЗМЕНЕНИЕ: УБРАН АВТОМАТИЧЕСКИЙ ЗАПУСК СИНХРОНИЗАЦИИ ---
     logging.info("Автоматическая синхронизация при старте отключена. Используйте команду /sync_lots в Telegram.")
 
-    funpay_thread = threading.Thread(target=funpay_bot_listener, args=(shared.funpay_account,), daemon=True)
+    # --- ИЗМЕНЕНИЕ: Добавляем второй аргумент (None) для совместимости ---
+    funpay_thread = threading.Thread(target=funpay_bot_listener, args=(shared.funpay_account, None), daemon=True)
     funpay_thread.start()
     logging.info("Поток прослушивания FunPay запущен.")
 
