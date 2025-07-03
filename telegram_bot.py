@@ -13,6 +13,8 @@ import config
 import state_manager
 from utils import format_timedelta
 from datetime import datetime
+import shared # <-- Импортируем наш новый модуль
+
 
 # --- Глобальные переменные и функции отправки (без изменений) ---
 BOT_INSTANCE: Bot = None
@@ -44,44 +46,6 @@ def _send_message_from_queue(context: CallbackContext):
         finally:
             TG_SEND_QUEUE.task_done()
 
-def start_bot():
-    global BOT_INSTANCE, UPDATER_INSTANCE, TG_SEND_QUEUE
-    if not config.TELEGRAM_BOT_TOKEN:
-        logging.warning("[TG_BOT] Токен не указан. Бот не будет запущен.")
-        return
-    try:
-        if not config.TELEGRAM_ADMIN_CHAT_ID:
-            logging.error("[TG_BOT] TELEGRAM_ADMIN_CHAT_ID не указан.")
-            return
-
-        BOT_INSTANCE = Bot(token=config.TELEGRAM_BOT_TOKEN)
-        UPDATER_INSTANCE = Updater(bot=BOT_INSTANCE, use_context=True)
-        dp = UPDATER_INSTANCE.dispatcher
-
-        TG_SEND_QUEUE = Queue()
-        job_queue: JobQueue = UPDATER_INSTANCE.job_queue
-        job_queue.run_repeating(_send_message_from_queue, interval=1, first=0)
-
-        # Регистрация всех команд
-        dp.add_handler(CommandHandler("start", start_command))
-        dp.add_handler(CommandHandler("enable", enable_bot_command))
-        dp.add_handler(CommandHandler("disable", disable_bot_command))
-        dp.add_handler(CommandHandler("status", status_command))
-        dp.add_handler(CommandHandler("enable_lots", enable_lots_command))
-        dp.add_handler(CommandHandler("disable_lots", disable_lots_command))
-        dp.add_handler(CommandHandler("stats", stats_command))
-        dp.add_handler(CommandHandler("rentals", rentals_command))
-        dp.add_handler(CommandHandler("games", games_command))
-
-        UPDATER_INSTANCE.start_polling()
-        logging.info("[TG_BOT] Telegram-бот и обработчик очереди успешно запущены.")
-    except Exception as e:
-        logging.error(f"[TG_BOT] Ошибка запуска Telegram-бота: {e}")
-
-def stop_bot():
-    if UPDATER_INSTANCE:
-        UPDATER_INSTANCE.stop()
-        logging.info("[TG_BOT] Telegram-бот остановлен.")
 
 def admin_only(func):
     def wrapped(update: Update, context: CallbackContext, *args, **kwargs):
@@ -179,26 +143,19 @@ def games_command(update: Update, context: CallbackContext):
         update.message.reply_text(f"❌ Ошибка: {e}")
 
 
+@admin_only
 def sync_lots_command(update: Update, context: CallbackContext):
     """
     Команда для принудительной синхронизации лотов с FunPay.
-    Доступна только администратору.
     """
-    user_id = update.message.from_user.id
-    if str(user_id) != config.TELEGRAM_ADMIN_CHAT_ID:
-        update.message.reply_text("Эта команда доступна только администратору.")
-        return
-
-    update.message.reply_text(
-        "⏳ Запускаю процесс синхронизации в фоновом режиме. Вы получите уведомление по завершении.")
-
-    funpay_account = context.bot_data.get('funpay_account')
-    if not funpay_account:
+    if not shared.funpay_account:
         update.message.reply_text("❌ Ошибка: не удалось получить доступ к аккаунту FunPay.")
         return
 
-    # Запускаем тяжелую задачу в отдельном потоке, чтобы не блокировать бота
-    thread = threading.Thread(target=bot_handler.sync_games_with_funpay_offers, args=(funpay_account,))
+    update.message.reply_text("⏳ Запускаю процесс синхронизации в фоновом режиме...")
+
+    # Запускаем тяжелую задачу в отдельном потоке
+    thread = threading.Thread(target=bot_handler.sync_games_with_funpay_offers, args=(shared.funpay_account,))
     thread.start()
 
 
@@ -224,3 +181,37 @@ def main(funpay_account):
     logging.info("Telegram бот запущен и готов к работе.")
     updater.start_polling()
     updater.idle()
+
+def start_telegram_bot():
+    """Инициализирует и запускает Telegram-бота."""
+    global UPDATER_INSTANCE, TG_SEND_QUEUE
+    if not config.TELEGRAM_BOT_TOKEN:
+        logging.warning("[TG_BOT] Токен не указан. Бот не будет запущен.")
+        return
+
+    UPDATER_INSTANCE = Updater(config.TELEGRAM_BOT_TOKEN, use_context=True)
+    dp = UPDATER_INSTANCE.dispatcher
+
+    TG_SEND_QUEUE = Queue()
+    job_queue = UPDATER_INSTANCE.job_queue
+    job_queue.run_repeating(_send_message_from_queue, interval=1, first=0)
+
+    # Регистрируем все команды
+    dp.add_handler(CommandHandler("start", start_command))
+    dp.add_handler(CommandHandler("status", status_command))
+    dp.add_handler(CommandHandler("enable", enable_bot_command))
+    dp.add_handler(CommandHandler("disable", disable_bot_command))
+    dp.add_handler(CommandHandler("enable_lots", enable_lots_command))
+    dp.add_handler(CommandHandler("disable_lots", disable_lots_command))
+    dp.add_handler(CommandHandler("sync_lots", sync_lots_command))
+    dp.add_handler(CommandHandler("stats", stats_command))
+    dp.add_handler(CommandHandler("rentals", rentals_command))
+    dp.add_handler(CommandHandler("games", games_command))
+
+    UPDATER_INSTANCE.start_polling()
+    logging.info("Telegram бот запущен.")
+
+
+def stop_telegram_bot():
+    if UPDATER_INSTANCE:
+        UPDATER_INSTANCE.stop()
