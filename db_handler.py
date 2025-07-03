@@ -13,6 +13,28 @@ from database import db_query, init_database
 MOSCOW_TZ = pytz.timezone('Europe/Moscow')
 
 
+
+def add_offer_id_to_game(game_id: int, offer_ids_to_add):
+    if not game_id or not offer_ids_to_add: return
+    if not isinstance(offer_ids_to_add, list):
+        offer_ids_to_add = [str(offer_ids_to_add)]
+    try:
+        current_ids_str = db_query("SELECT funpay_offer_ids FROM games WHERE id = ?", (game_id,), fetch="one")
+        current_ids = set(current_ids_str[0].split(',')) if (current_ids_str and current_ids_str[0]) else set()
+
+        updated = False
+        for offer_id in offer_ids_to_add:
+            if str(offer_id) not in current_ids:
+                current_ids.add(str(offer_id))
+                updated = True
+
+        if updated:
+            new_ids_str = ",".join(sorted(list(current_ids), key=int))
+            db_query("UPDATE games SET funpay_offer_ids = ? WHERE id = ?", (new_ids_str, game_id))
+            logging.info(f"[DB] Обновлен список лотов для игры {game_id}. Новые ID: {offer_ids_to_add}.")
+    except Exception as e:
+        logging.error(f"[DB] Ошибка при добавлении лотов к игре {game_id}: {e}")
+
 def _check_column_exists(cursor, table_name, column_name):
     cursor.execute(f"PRAGMA table_info({table_name})")
     return column_name in [row[1] for row in cursor.fetchall()]
