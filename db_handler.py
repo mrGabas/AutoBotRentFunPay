@@ -216,3 +216,34 @@ def extend_user_rental(username, hours_to_add):
 
 def set_game_offer_ids(game_id, offer_ids_str):
     db_query("UPDATE games SET funpay_offer_ids = ? WHERE id = ?", (offer_ids_str, game_id))
+
+
+def add_offer_id_to_game(game_id: int, offer_id: int):
+    """
+    Добавляет ID нового лота к игре, избегая дубликатов.
+    """
+    if not game_id or not offer_id:
+        return
+
+    try:
+        # 1. Получаем текущий список ID
+        current_ids_str = db_query("SELECT funpay_offer_ids FROM games WHERE id = ?", (game_id,), fetch="one")
+        if not current_ids_str:
+            # Если у игры вообще не было списка, создаем новый
+            new_ids_str = str(offer_id)
+        else:
+            # 2. Преобразуем строку в множество, чтобы избежать дублей
+            current_ids = set(current_ids_str[0].split(',')) if current_ids_str[0] else set()
+
+            # 3. Добавляем новый ID
+            current_ids.add(str(offer_id))
+
+            # 4. Собираем обратно в отсортированную строку
+            new_ids_str = ",".join(sorted(list(current_ids), key=int))
+
+        # 5. Сохраняем новый список в БД
+        set_game_offer_ids(game_id, new_ids_str)
+        logging.info(f"[DB] Лот {offer_id} успешно привязан к игре {game_id}.")
+
+    except Exception as e:
+        logging.error(f"[DB] Ошибка при добавлении лота {offer_id} к игре {game_id}: {e}")

@@ -278,6 +278,21 @@ def funpay_bot_listener(account, update_queue):
                 if event.type == EventTypes.NEW_ORDER:
                     order = event.order
                     logging.info(f"[BOT] Обнаружен новый заказ #{order.id} от {order.buyer_username}.")
+                    all_games = {g[1]: g[0] for g in db_handler.db_query("SELECT id, name FROM games", fetch="all")}
+                    detected_game_name = next((name for name in all_games if name.lower() in order.description.lower()),
+                                              None)
+
+                    if not detected_game_name and order.subcategory and order.subcategory.category:
+                        detected_game_name = order.subcategory.category.name
+
+                    if detected_game_name and detected_game_name in all_games:
+                        game_id = all_games[detected_game_name]
+                        # Убеждаемся, что у заказа есть ID лота
+                        if hasattr(order, 'offer') and hasattr(order.offer, 'id'):
+                            logging.info(f"[BOT] Обнаружен ID лота: {order.offer.id} для игры '{detected_game_name}'.")
+                            db_handler.add_offer_id_to_game(game_id, order.offer.id)
+                        else:
+                            logging.warning(f"[BOT] Не удалось получить ID лота из заказа #{order.id}.")
                     description_lower = order.description.lower()
 
                     # Проверяем, содержит ли описание ключевые слова для аренды
