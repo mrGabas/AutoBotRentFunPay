@@ -1,10 +1,13 @@
 # telegram_bot.py
-import logging
 from telegram import Update, Bot, ParseMode
 from telegram.ext import Updater, CommandHandler, CallbackContext, JobQueue
 from telegram.error import TelegramError
 from queue import Queue
-
+import logging
+import threading
+from telegram import Update
+from telegram.ext import Updater, CommandHandler, CallbackContext
+import bot_handler
 import db_handler
 import config
 import state_manager
@@ -97,10 +100,11 @@ def start_command(update: Update, context: CallbackContext):
         f"👋 Привет, {user_name}!\n\n"
         "<b>Управление ботом:</b>\n"
         "/enable - ✅ Включить бота (авторежим).\n"
-        "/disable - ⛔️ Выключить бота (ручной режим).\n\n"
+        "/disable - ⛔️ Выключить бота (ручной режим).\n"
+        "/sync_lots - 🔄 Принудительно обновить список лотов.\n\n"
         "<b>Управление лотами:</b>\n"
         "/enable_lots - ✅ Разрешить боту включать лоты.\n"
-        "/disable_lots - 🚫 Принудительно выключить ВСЕ лоты.\n\n"
+        "/disable_lots - 🚫 Запретить боту включать лоты.\n\n"
         "<b>Информация:</b>\n"
         "/status - ℹ️ Узнать текущий статус.\n"
         "/stats - Общая статистика.\n"
@@ -173,3 +177,50 @@ def games_command(update: Update, context: CallbackContext):
         update.message.reply_text(message, parse_mode=ParseMode.HTML)
     except Exception as e:
         update.message.reply_text(f"❌ Ошибка: {e}")
+
+
+def sync_lots_command(update: Update, context: CallbackContext):
+    """
+    Команда для принудительной синхронизации лотов с FunPay.
+    Доступна только администратору.
+    """
+    user_id = update.message.from_user.id
+    if str(user_id) != config.TELEGRAM_ADMIN_CHAT_ID:
+        update.message.reply_text("Эта команда доступна только администратору.")
+        return
+
+    update.message.reply_text(
+        "⏳ Запускаю процесс синхронизации в фоновом режиме. Вы получите уведомление по завершении.")
+
+    funpay_account = context.bot_data.get('funpay_account')
+    if not funpay_account:
+        update.message.reply_text("❌ Ошибка: не удалось получить доступ к аккаунту FunPay.")
+        return
+
+    # Запускаем тяжелую задачу в отдельном потоке, чтобы не блокировать бота
+    thread = threading.Thread(target=bot_handler.sync_games_with_funpay_offers, args=(funpay_account,))
+    thread.start()
+
+
+def main(funpay_account):
+    """Запускает Telegram-бота."""
+    updater = Updater(config.TELEGRAM_BOT_TOKEN, use_context=True)
+    dispatcher = updater.dispatcher
+
+    # Сохраняем объект аккаунта FunPay в контекст для доступа из команд
+    dispatcher.bot_data['funpay_account'] = funpay_account
+
+    # Регистрируем все команды
+    dispatcher.add_handler(CommandHandler("start", start_command))
+    dispatcher.add_handler(CommandHandler("status", status_command))
+    dispatcher.add_handler(CommandHandler("enable", enable_bot_command))
+    dispatcher.add_handler(CommandHandler("disable", disable_bot_command))
+    dispatcher.add_handler(CommandHandler("enable_lots", enable_lots_command))
+    dispatcher.add_handler(CommandHandler("disable_lots", disable_lots_command))
+
+    # ДОБАВЛЯЕМ НОВУЮ КОМАНДУ
+    dispatcher.add_handler(CommandHandler("sync_lots", sync_lots_command))
+
+    logging.info("Telegram бот запущен и готов к работе.")
+    updater.start_polling()
+    updater.idle()

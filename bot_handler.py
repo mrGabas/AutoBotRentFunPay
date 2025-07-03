@@ -22,63 +22,52 @@ game_check_index = 0
 
 def sync_games_with_funpay_offers(account: Account):
     """
-    Автоматически сопоставляет игры из БД с лотами FunPay по ключевым словам.
-    Запускается один раз при старте бота, после чего выполняет первичную полную проверку статусов лотов.
+    Сканирует все лоты на FunPay и сопоставляет их с играми в БД.
+    Отправляет уведомления в Telegram о ходе процесса.
     """
+    send_telegram_notification("🚀 Начинаю полную синхронизацию лотов с FunPay...")
     logging.info("[SYNC] Запуск синхронизации игр с лотами FunPay.")
     try:
         db_games = db_handler.db_query("SELECT id, name FROM games", fetch="all")
         if not db_games:
-            logging.warning("[SYNC] В базе данных нет игр. Синхронизация невозможна.")
+            logging.warning("[SYNC] В базе данных нет игр.")
+            send_telegram_notification("⚠️ В базе данных нет игр для синхронизации.")
             return
 
-        user_profile = account.get_user(account.id)
-        if not user_profile:
-            logging.error("[SYNC] Не удалось получить профиль пользователя для синхронизации лотов.")
-            return
-        all_offers = user_profile.get_lots()
-
+        all_offers = account.get_user(account.id).get_lots()
         if not all_offers:
-            logging.warning("[SYNC] Не удалось получить лоты с FunPay или на аккаунте нет лотов.")
+            logging.warning("[SYNC] Не удалось получить лоты с FunPay.")
+            send_telegram_notification("❌ Не удалось получить список лотов с FunPay.")
             return
 
         logging.info(f"[SYNC] Найдено {len(all_offers)} лотов на аккаунте. Начинаю анализ.")
-        game_to_ids = {game_id: [] for game_id, name in db_games}
 
-        rental_pattern = re.compile(r'(?:\b\d+\s*(?:час|часа|часов|ч|д|дней|день|day|days)\b|\b(?:аренда|rent)\b)',
-                                    re.IGNORECASE)
+        total_found = 0
+        for game_id, game_name in db_games:
+            found_ids = []
+            for offer in all_offers:
+                offer_text = (offer.description or "").lower()
+                if offer.subcategory and offer.subcategory.category:
+                    offer_text += " " + offer.subcategory.category.name.lower()
 
-        for offer in all_offers:
-            if not offer.description or not rental_pattern.search(offer.description):
-                continue
+                if game_name.lower() in offer_text and any(kw in offer_text for kw in RENTAL_KEYWORDS):
+                    found_ids.append(str(offer.id))
 
-            if not (offer.subcategory and offer.subcategory.category):
-                continue
-
-            funpay_category_name = offer.subcategory.category.name.lower()
-
-            for db_game_id, db_game_name in db_games:
-                db_name_lower = db_game_name.lower()
-                if (db_name_lower in funpay_category_name) or (funpay_category_name in db_name_lower):
-                    game_to_ids[db_game_id].append(str(offer.id))
-                    break
-
-        for game_id, found_ids in game_to_ids.items():
             if found_ids:
-                ids_str = ",".join(sorted(list(set(found_ids))))
-                db_handler.set_game_offer_ids(game_id, ids_str)
+                db_handler.add_offer_id_to_game(game_id, found_ids)
+                total_found += len(found_ids)
 
-        logging.info("[SYNC] Автоматическая синхронизация ID лотов завершена.")
+        send_telegram_notification(f"✅ Синхронизация лотов завершена. Найдено и обновлено {total_found} ID.")
 
-        logging.info("[SYNC_CHECK] Запуск первичной проверки статусов всех лотов.")
-        all_game_ids_in_db = [game[0] for game in db_games]
-        for game_id in all_game_ids_in_db:
+        logging.info("[SYNC_CHECK] Запуск проверки статусов всех лотов.")
+        for game_id, _ in db_games:
             update_offer_status_for_game(account, game_id)
-            time.sleep(3)
-        logging.info("[SYNC_CHECK] Первичная проверка статусов лотов завершена.")
+            time.sleep(2)  # Небольшая задержка между запросами
+        send_telegram_notification("ℹ️ Проверка и обновление статусов лотов на FunPay завершены.")
 
     except Exception as e:
-        logging.exception(f"[SYNC] Ошибка во время синхронизации игр с лотами.")
+        logging.exception(f"[SYNC] Ошибка во время синхронизации: {e}")
+        send_telegram_alert(f"❌ Произошла ошибка во время синхронизации:\n`{e}`")
 
 
 def update_offer_status_for_game(account: Account, game_id: int):
