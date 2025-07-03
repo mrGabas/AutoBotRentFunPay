@@ -1,33 +1,30 @@
-# utils.py
-from datetime import datetime
 import time
+from datetime import datetime, timedelta
+import pytz
+import logging
+
+MOSCOW_TZ = pytz.timezone('Europe/Moscow')
 
 
-def background_checker(rentals_list, queue_obj):
-    """Фоновый процесс для проверки аренд."""
+def background_checker(rentals, update_queue):
+    reminded_rentals = set()
     while True:
-        now = datetime.now()
-        # Мы работаем с оригинальным списком, чтобы изменения были видны
-        for r in rentals_list:
-            # Проверка на полное истечение срока
-            if "end" in r and now >= r["end"]:
-                # Если аренда истекла, но еще не в истории, отправляем на обработку
-                # Эта проверка нужна, чтобы не спамить истекшими задачами
-                if not r.get("expired_sent"):
-                    queue_obj.put(("expired", r))
-                    r["expired_sent"] = True  # Ставим флаг, что уже отправили
-                continue
+        try:
+            now = datetime.now(MOSCOW_TZ)
+            for rental in rentals:
+                rental_id = rental.get("id")
+                if not rental_id or rental_id in reminded_rentals: continue
 
-            # --- ГЛАВНОЕ ИЗМЕНЕНИЕ ЗДЕСЬ ---
-            # Проверка на время напоминания
-            if "remind" in r and now >= r["remind"] and not r.get("reminded", False):
-                queue_obj.put(("reminder", r))
-                # СРАЗУ ЖЕ ставим отметку в объекте, с которым работаем.
-                # Теперь на следующей проверке `not r.get("reminded", False)` вернет False,
-                # и повторное уведомление не будет отправлено.
-                r["reminded"] = True
+                end_time = rental.get("end")
+                if not isinstance(end_time, datetime): continue  # Пропускаем, если время не установлено
 
-        time.sleep(20)  # Пауза между проверками
+                time_left = end_time - now
+                if 0 < time_left.total_seconds() < 300:  # 5 минут
+                    update_queue.put(("reminder", rental))
+                    reminded_rentals.add(rental_id)
+        except Exception as e:
+            logging.error(f"Ошибка в фоновом процессе: {e}", exc_info=True)
+        time.sleep(60)
 
 
 def format_timedelta(td):

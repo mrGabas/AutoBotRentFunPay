@@ -1,4 +1,3 @@
-# ui.py
 import tkinter as tk
 from tkinter import ttk, messagebox, simpledialog
 from datetime import datetime, timedelta
@@ -7,50 +6,49 @@ from utils import format_timedelta, format_display_time
 
 
 class UIManager:
-    """
-    Класс, отвечающий исключительно за создание, настройку и обновление
-    всех элементов графического интерфейса (GUI).
-    """
-
-    def __init__(self, master, action_handler):
-        # ... (секция __init__ без изменений) ...
+    def __init__(self, master, app_controller):
         self.master = master
-        self.app_actions = action_handler
-        self.entry_name = None
-        self.game_var = tk.StringVar(master)
-        self.game_menu = None
-        self.account_var = tk.StringVar(master)
-        self.account_menu = None
-        self.entry_days = None
-        self.entry_hours = None
-        self.entry_minutes = None
-        self.entry_info = None
-        self.clock_label = None
-        self.search_rentals_var = tk.StringVar(master)
-        self.tree = None
-        self.search_history_var = tk.StringVar(master)
-        self.history_tree = None
-        self.accounts_tree = None
-        self.lots_listbox = None
-        self.lot_id_entry = None
+        self.app = app_controller
+        # ... (переменные виджетов) ...
         self._create_widgets()
         self._create_menu()
-        self.game_var.trace_add("write", self.app_actions.on_game_selection_change)
-        self.search_rentals_var.trace_add("write", lambda *_: self.update_rentals_table(self.app_actions.rentals))
-        self.search_history_var.trace_add("write", lambda *_: self.update_history_table(self.app_actions.history))
+        self.game_var.trace_add("write", self.app.on_game_selection_change)
+        self.search_rentals_var.trace_add("write", lambda *_: self.app.refresh_timers())
+        self.search_history_var.trace_add("write", lambda *_: self.update_history_table(self.app.history))
 
-    # ... (update_all_views, _create_menu, _create_widgets, _create_input_frame, _create_notebook, _create_rentals_tab, _create_history_tab без изменений) ...
-    def update_all_views(self, data_provider):
-        self.update_rentals_table(data_provider.rentals)
-        self.update_history_table(data_provider.history)
-        self.update_accounts_table(data_provider.accounts)
-        self.update_game_menu(data_provider.games)
-        if self.game_var.get() == "" or self.game_var.get() not in [g['name'] for g in data_provider.games]:
-            if data_provider.games:
-                self.game_var.set(data_provider.games[0]['name'])
+    def update_all_views(self, app_data_provider):
+        self.app.refresh_timers()
+        self.update_history_table(app_data_provider.history)
+        self.update_accounts_table(app_data_provider.accounts)
+        self.update_game_menu(app_data_provider.games)
+        if self.app.ui.game_var.get() == "" or self.app.ui.game_var.get() not in [g['name'] for g in
+                                                                                  app_data_provider.games]:
+            if app_data_provider.games:
+                self.app.ui.game_var.set(app_data_provider.games[0]['name'])
             else:
-                self.app_actions.on_game_selection_change()
+                self.app.on_game_selection_change()
 
+    def update_rentals_table(self, rentals_data, now_aware):
+        self.tree.delete(*self.tree.get_children())
+        search_term = self.search_rentals_var.get().lower()
+        filtered_data = [r for r in rentals_data if
+                         not search_term or any(search_term in str(val).lower() for val in r.values())]
+
+        for r in sorted(filtered_data, key=lambda r: r.get('end') or datetime.max.replace(tzinfo=pytz.UTC)):
+            end_time = r.get('end')
+            if not end_time: continue
+
+            time_left = end_time - now_aware
+            tag = 'danger' if time_left.total_seconds() < 600 else 'normal'
+            end_time_str = format_display_time(end_time)
+            duration_str = format_timedelta(timedelta(minutes=r.get('minutes', 0)))
+            time_left_str = format_timedelta(time_left) if time_left.total_seconds() > 0 else "Истекло"
+
+            self.tree.insert('', 'end', iid=r.get('id'),
+                             values=(r.get("name"), r.get("game"), duration_str, end_time_str, time_left_str,
+                                     r.get("account_login"), r.get("account_password"), r.get("info")), tags=(tag,))
+
+    # Остальной код файла ui.py остается без изменений...
     def _create_menu(self):
         main_menu = tk.Menu(self.master)
         self.master.config(menu=main_menu)
@@ -200,7 +198,6 @@ class UIManager:
                                                                                                     padx=(5, 0))
         ttk.Button(add_lot_frame, text="➖ Удалить выбранный", command=self.app_actions.remove_lot_from_game).pack(
             side=tk.LEFT, padx=(5, 0))
-
         accounts_frame = ttk.LabelFrame(tab, text="Аккаунты", padding=10)
         accounts_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
         accounts_columns = ("Игра", "Логин", "Пароль", "Статус", "Арендатор")
@@ -210,8 +207,6 @@ class UIManager:
         scrollbar = ttk.Scrollbar(accounts_frame, orient=tk.VERTICAL, command=self.accounts_tree.yview)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         self.accounts_tree.configure(yscrollcommand=scrollbar.set)
-
-        # <<< ИЗМЕНЕНИЕ: Добавляем кнопку редактирования >>>
         acc_buttons_frame = ttk.Frame(tab)
         acc_buttons_frame.pack(fill=tk.X, padx=10, pady=(0, 5))
         ttk.Button(acc_buttons_frame, text="➕ Добавить", command=self.app_actions.add_account).pack(side=tk.LEFT,
@@ -224,33 +219,14 @@ class UIManager:
         ttk.Button(acc_buttons_frame, text="➖ Удалить", command=self.app_actions.remove_account).pack(side=tk.LEFT,
                                                                                                       expand=True,
                                                                                                       fill=tk.X)
-        # <<< КОНЕЦ ИЗМЕНЕНИЯ >>>
         return tab
-
-    def update_rentals_table(self, rentals_data):
-        self.tree.delete(*self.tree.get_children())
-        search_term = self.search_rentals_var.get().lower()
-        now = datetime.now()
-        filtered_data = [r for r in rentals_data if
-                         not search_term or any(search_term in str(val).lower() for val in r.values())]
-        for r in sorted(filtered_data, key=lambda r: r.get('end', datetime.max)):
-            end_time = r.get('end')
-            if not end_time: continue
-            time_left = end_time - now
-            tag = 'danger' if time_left.total_seconds() < 600 else 'normal'
-            end_time_str = format_display_time(end_time.astimezone(pytz.timezone("Europe/Moscow")))
-            duration_str = format_timedelta(timedelta(minutes=r.get('minutes', 0)))
-            time_left_str = format_timedelta(time_left)
-            self.tree.insert('', 'end', iid=r.get('id'),
-                             values=(r.get("name"), r.get("game"), duration_str, end_time_str, time_left_str,
-                                     r.get("account_login"), r.get("account_password"), r.get("info")), tags=(tag,))
 
     def update_history_table(self, history_data):
         self.history_tree.delete(*self.history_tree.get_children())
         search_term = self.search_history_var.get().lower()
         filtered_data = [h for h in history_data if
                          not search_term or any(search_term in str(val).lower() for val in h.values())]
-        for r in sorted(filtered_data, key=lambda r: r.get('end', datetime.min), reverse=True):
+        for r in sorted(filtered_data, key=lambda r: r.get('end', datetime.min.replace(tzinfo=pytz.UTC)), reverse=True):
             end_time = r.get('end')
             if not end_time: continue
             end_time_str = format_display_time(end_time.astimezone(pytz.timezone("Europe/Moscow")))
@@ -262,13 +238,9 @@ class UIManager:
     def update_accounts_table(self, accounts_data):
         self.accounts_tree.delete(*self.accounts_tree.get_children())
         for acc in sorted(accounts_data, key=lambda x: x['game_name']):
-            # <<< ИЗМЕНЕНИЕ: Добавляем ID в данные Treeview для легкого доступа >>>
-            self.accounts_tree.insert('', 'end', iid=acc['id'], values=(
-                acc["game_name"], acc["login"], acc["password"],
-                "Занят" if acc.get("rented_by") else "Свободен",
-                acc.get("rented_by", "-")
-            ))
-            # <<< КОНЕЦ ИЗМЕНЕНИЯ >>>
+            self.accounts_tree.insert('', 'end', iid=acc['id'], values=(acc["game_name"], acc["login"], acc["password"],
+                                                                        "Занят" if acc.get("rented_by") else "Свободен",
+                                                                        acc.get("rented_by", "-")))
 
     def update_game_menu(self, games_data):
         menu = self.game_menu['menu']
@@ -315,18 +287,14 @@ class UIManager:
 
         tk.Button(editor_window, text="Сохранить", command=save_changes).pack(pady=20)
 
-    # <<< ИЗМЕНЕНИЕ: Новый метод для окна редактирования аккаунта >>>
     def show_account_editor_window(self, account_data, on_save_callback):
-        """Окно для редактирования логина и пароля аккаунта."""
         editor_window = tk.Toplevel(self.master)
         editor_window.title("Редактировать аккаунт")
         editor_window.transient(self.master)
         editor_window.grab_set()
-
         tk.Label(editor_window, text="Логин:").pack(pady=(10, 0))
         login_var = tk.StringVar(value=account_data.get("login", ""))
         tk.Entry(editor_window, textvariable=login_var, width=40).pack(fill=tk.X, padx=10)
-
         tk.Label(editor_window, text="Пароль:").pack(pady=(10, 0))
         password_var = tk.StringVar(value=account_data.get("password", ""))
         tk.Entry(editor_window, textvariable=password_var, width=40).pack(fill=tk.X, padx=10)
@@ -337,14 +305,11 @@ class UIManager:
             if not new_login or not new_password:
                 messagebox.showerror("Ошибка", "Логин и пароль не могут быть пустыми.", parent=editor_window)
                 return
-
             self.app_actions.update_account_details(account_data['id'], new_login, new_password)
             editor_window.destroy()
             on_save_callback()
 
         tk.Button(editor_window, text="Сохранить", command=save_changes).pack(pady=20)
-
-    # <<< КОНЕЦ ИЗМЕНЕНИЯ >>>
 
     def clear_input_fields(self):
         self.entry_name.delete(0, tk.END)
