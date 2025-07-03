@@ -22,47 +22,58 @@ game_check_index = 0
 
 def sync_games_with_funpay_offers(account: Account):
     """
-    Сканирует все лоты на FunPay и сопоставляет их с играми в БД.
-    Отправляет уведомления в Telegram о ходе процесса.
+    Сканирует все лоты на FunPay и ДОБАВЛЯЕТ новые, которых еще нет в БД.
+    Эта операция больше не удаляет существующие ID.
     """
-    send_telegram_notification("🚀 Начинаю полную синхронизацию лотов с FunPay...")
-    logging.info("[SYNC] Запуск синхронизации игр с лотами FunPay.")
+    send_telegram_notification("🚀 Начинаю синхронизацию лотов с FunPay...")
+    logging.info("[SYNC] Запуск неразрушающей синхронизации игр с лотами FunPay.")
     try:
-        db_games = db_handler.db_query("SELECT id, name FROM games", fetch="all")
+        # Получаем все игры и их текущие ID из БД
+        db_games = db_handler.db_query("SELECT id, name, funpay_offer_ids FROM games", fetch="all")
         if not db_games:
-            logging.warning("[SYNC] В базе данных нет игр.")
             send_telegram_notification("⚠️ В базе данных нет игр для синхронизации.")
             return
 
         all_offers = account.get_user(account.id).get_lots()
         if not all_offers:
-            logging.warning("[SYNC] Не удалось получить лоты с FunPay.")
             send_telegram_notification("❌ Не удалось получить список лотов с FunPay.")
             return
 
-        logging.info(f"[SYNC] Найдено {len(all_offers)} лотов на аккаунте. Начинаю анализ.")
+        # Собираем в одно множество все ID, которые уже известны боту
+        all_known_ids = set()
+        for _, _, ids_str in db_games:
+            if ids_str:
+                all_known_ids.update(ids_str.split(','))
 
-        total_found = 0
-        for game_id, game_name in db_games:
-            found_ids = []
+        logging.info(f"[SYNC] Найдено {len(all_offers)} лотов на аккаунте. Ищу только новые...")
+
+        newly_found_count = 0
+        for game_id, game_name, _ in db_games:
+            new_ids_for_this_game = []
             for offer in all_offers:
+                # Если ID уже известен, пропускаем его
+                if str(offer.id) in all_known_ids:
+                    continue
+
+                # Ищем соответствие только среди НЕИЗВЕСТНЫХ лотов
                 offer_text = (offer.description or "").lower()
                 if offer.subcategory and offer.subcategory.category:
                     offer_text += " " + offer.subcategory.category.name.lower()
 
                 if game_name.lower() in offer_text and any(kw in offer_text for kw in RENTAL_KEYWORDS):
-                    found_ids.append(str(offer.id))
+                    new_ids_for_this_game.append(str(offer.id))
 
-            if found_ids:
-                db_handler.add_offer_id_to_game(game_id, found_ids)
-                total_found += len(found_ids)
+            # Если для этой игры нашлись новые ID, добавляем их в базу
+            if new_ids_for_this_game:
+                db_handler.add_offer_id_to_game(game_id, new_ids_for_this_game)
+                newly_found_count += len(new_ids_for_this_game)
 
-        send_telegram_notification(f"✅ Синхронизация лотов завершена. Найдено и обновлено {total_found} ID.")
+        send_telegram_notification(f"✅ Синхронизация завершена. Найдено и добавлено {newly_found_count} новых ID.")
 
         logging.info("[SYNC_CHECK] Запуск проверки статусов всех лотов.")
-        for game_id, _ in db_games:
+        for game_id, _, _ in db_games:
             update_offer_status_for_game(account, game_id)
-            time.sleep(2)  # Небольшая задержка между запросами
+            time.sleep(2)
         send_telegram_notification("ℹ️ Проверка и обновление статусов лотов на FunPay завершены.")
 
     except Exception as e:
