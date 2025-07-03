@@ -9,7 +9,26 @@ class UIManager:
     def __init__(self, master, app_controller):
         self.master = master
         self.app = app_controller
-        # ... (переменные виджетов) ...
+
+        # ---> ИСПРАВЛЕНИЕ: Возвращаем на место удаленный блок <---
+        # Переменные для виджетов
+        self.entry_name = None
+        self.game_var = tk.StringVar(master)
+        self.game_menu = None
+        self.account_var = tk.StringVar(master)
+        self.account_menu = None
+        self.entry_days = None
+        self.entry_hours = None
+        self.entry_minutes = None
+        self.entry_info = None
+        self.clock_label = None
+        self.search_rentals_var = tk.StringVar(master)
+        self.tree = None
+        self.search_history_var = tk.StringVar(master)
+        self.history_tree = None
+        self.accounts_tree = None
+        self.lots_listbox = None
+        self.lot_id_entry = None
         self._create_widgets()
         self._create_menu()
         self.game_var.trace_add("write", self.app.on_game_selection_change)
