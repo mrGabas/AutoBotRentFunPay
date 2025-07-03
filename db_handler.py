@@ -13,6 +13,20 @@ from database import db_query, init_database
 MOSCOW_TZ = pytz.timezone('Europe/Moscow')
 
 
+def find_game_by_offer_id(offer_id: str):
+    """
+    Находит игру, к которой привязан указанный ID лота.
+    Возвращает (id, name) игры или None.
+    """
+    all_games = db_query("SELECT id, name, funpay_offer_ids FROM games", fetch="all")
+    if not all_games:
+        return None
+
+    for game_id, game_name, ids_str in all_games:
+        if ids_str:
+            if offer_id in ids_str.split(','):
+                return game_id, game_name
+    return None
 
 def add_offer_id_to_game(game_id: int, offer_ids_to_add):
     if not game_id or not offer_ids_to_add: return

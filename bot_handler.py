@@ -19,16 +19,10 @@ import state_manager
 # Глобальная переменная для поочередной проверки игр
 game_check_index = 0
 
-
 def sync_games_with_funpay_offers(account: Account):
-    """
-    Сканирует все лоты на FunPay и ДОБАВЛЯЕТ новые, которых еще нет в БД.
-    Эта операция больше не удаляет существующие ID.
-    """
-    send_telegram_notification("🚀 Начинаю синхронизацию лотов с FunPay...")
+    send_telegram_notification("🚀 Начинаю полную синхронизацию лотов с FunPay...")
     logging.info("[SYNC] Запуск неразрушающей синхронизации игр с лотами FunPay.")
     try:
-        # Получаем все игры и их текущие ID из БД
         db_games = db_handler.db_query("SELECT id, name, funpay_offer_ids FROM games", fetch="all")
         if not db_games:
             send_telegram_notification("⚠️ В базе данных нет игр для синхронизации.")
@@ -39,7 +33,6 @@ def sync_games_with_funpay_offers(account: Account):
             send_telegram_notification("❌ Не удалось получить список лотов с FunPay.")
             return
 
-        # Собираем в одно множество все ID, которые уже известны боту
         all_known_ids = set()
         for _, _, ids_str in db_games:
             if ids_str:
@@ -51,11 +44,8 @@ def sync_games_with_funpay_offers(account: Account):
         for game_id, game_name, _ in db_games:
             new_ids_for_this_game = []
             for offer in all_offers:
-                # Если ID уже известен, пропускаем его
-                if str(offer.id) in all_known_ids:
-                    continue
+                if str(offer.id) in all_known_ids: continue
 
-                # Ищем соответствие только среди НЕИЗВЕСТНЫХ лотов
                 offer_text = (offer.description or "").lower()
                 if offer.subcategory and offer.subcategory.category:
                     offer_text += " " + offer.subcategory.category.name.lower()
@@ -63,7 +53,6 @@ def sync_games_with_funpay_offers(account: Account):
                 if game_name.lower() in offer_text and any(kw in offer_text for kw in RENTAL_KEYWORDS):
                     new_ids_for_this_game.append(str(offer.id))
 
-            # Если для этой игры нашлись новые ID, добавляем их в базу
             if new_ids_for_this_game:
                 db_handler.add_offer_id_to_game(game_id, new_ids_for_this_game)
                 newly_found_count += len(new_ids_for_this_game)
@@ -79,7 +68,6 @@ def sync_games_with_funpay_offers(account: Account):
     except Exception as e:
         logging.exception(f"[SYNC] Ошибка во время синхронизации: {e}")
         send_telegram_alert(f"❌ Произошла ошибка во время синхронизации:\n`{e}`")
-
 
 def update_offer_status_for_game(account: Account, game_id: int):
     """Обновляет статус лотов для игры, учитывая глобальные переключатели."""
@@ -263,86 +251,96 @@ def expired_rentals_checker(account: Account):
             logging.exception(f"Ошибка в процессе фоновой синхронизации статусов.")
         time.sleep(60)
 
-def funpay_bot_listener(account, update_queue):
-    """Основной обработчик событий FunPay."""
+
+def funpay_bot_listener(account, _):
+    """
+    Основной обработчик событий FunPay.
+    Реагирует ТОЛЬКО на заказы с ID лотов, которые есть в базе.
+    """
     runner = Runner(account)
-    logging.info("FunPay обработчик событий запущен.")
+    logging.info("FunPay обработчик событий запущен в СТРОГОМ режиме.")
     while True:
         try:
             for event in runner.listen():
+                # 1. Проверяем, включен ли бот глобально
                 if not state_manager.is_bot_enabled:
-                    if event.type == EventTypes.NEW_ORDER or event.type == EventTypes.NEW_MESSAGE:
-                        logging.info(f"[BOT_DISABLED] Получено событие {event.type}, но бот выключен. Игнорирую.")
-                    time.sleep(5)
-                    continue
+                    if event.type in [EventTypes.NEW_ORDER, EventTypes.NEW_MESSAGE]:
+                        logging.info(f"[BOT_DISABLED] Событие {event.type} проигнорировано.")
+                    continue  # Если бот выключен, игнорируем все события
+
+                # 2. Обрабатываем ТОЛЬКО новые заказы
                 if event.type == EventTypes.NEW_ORDER:
                     order = event.order
-                    logging.info(f"[BOT] Обнаружен новый заказ #{order.id} от {order.buyer_username}.")
-                    all_games = {g[1]: g[0] for g in db_handler.db_query("SELECT id, name FROM games", fetch="all")}
-                    detected_game_name = next((name for name in all_games if name.lower() in order.description.lower()),
-                                              None)
+                    logging.info(f"--- Получен новый заказ #{order.id} от {order.buyer_username} ---")
 
-                    if not detected_game_name and order.subcategory and order.subcategory.category:
-                        detected_game_name = order.subcategory.category.name
+                    # 3. Проверяем, есть ли у заказа ID лота
+                    if not hasattr(order, 'offer') or not hasattr(order.offer, 'id'):
+                        logging.warning(f"[{order.id}] Проигнорирован: в данных заказа отсутствует ID лота.")
+                        continue
 
-                    if detected_game_name and detected_game_name in all_games:
-                        game_id = all_games[detected_game_name]
-                        # Убеждаемся, что у заказа есть ID лота
-                        if hasattr(order, 'offer') and hasattr(order.offer, 'id'):
-                            logging.info(f"[BOT] Обнаружен ID лота: {order.offer.id} для игры '{detected_game_name}'.")
-                            db_handler.add_offer_id_to_game(game_id, order.offer.id)
+                    offer_id = str(order.offer.id)
+                    logging.info(f"[{order.id}] ID лота: {offer_id}. Проверяю, есть ли он в базе...")
+
+                    # 4. Ищем игру, к которой привязан этот ID лота
+                    game_info = db_handler.find_game_by_offer_id(offer_id)
+
+                    if not game_info:
+                        logging.warning(
+                            f"[{order.id}] Проигнорирован: ID лота {offer_id} не найден ни у одной игры в базе.")
+                        continue
+
+                    game_id, game_name = game_info
+                    logging.info(f"[{order.id}] ID лота {offer_id} найден. Игра: '{game_name}'. Начинаю обработку.")
+                    send_telegram_notification(f"Поступил заказ #{order.id} по известному лоту. Игра: {game_name}.")
+
+                    try:
+                        # 5. Определяем срок аренды
+                        order_text = order.description.lower()
+                        match = re.search(r'(\d+)\s*(час|часа|часов|ч|д|дней|день|day|days)', order_text)
+                        if not match:
+                            logging.error(f"[{order.id}] ОШИБКА: Не удалось определить срок аренды.")
+                            send_telegram_alert(f"Не удалось определить СРОК для заказа `#{order.id}`.")
+                            continue
+
+                        time_value = int(match.group(1))
+                        time_unit = match.group(2)
+                        total_minutes = (time_value * 1440) if time_unit in ['д', 'дней', 'день', 'day', 'days'] else (
+                                    time_value * 60)
+                        if order.amount > 1:
+                            total_minutes *= order.amount
+                        logging.info(f"[{order.id}] Срок аренды: {total_minutes} минут.")
+
+                        # 6. Выдача аккаунта
+                        rental_data = db_handler.rent_account(game_name, order.buyer_username, total_minutes,
+                                                              order.chat_id)
+
+                        if rental_data:
+                            login, password, _ = rental_data
+                            logging.info(f"[{order.id}] УСПЕХ: Аккаунт {login} выдан.")
+                            lang = 'ru'
+                            response_text = localization.get_text('RENTAL_SUCCESS', lang).format(
+                                game_name=game_name,
+                                login=login,
+                                password=password,
+                                total_hours=round(total_minutes / 60, 1)
+                            )
+                            account.send_message(order.chat_id, response_text, chat_name=order.buyer_username)
+                            # Сразу же обновляем статус лотов для этой игры
+                            update_offer_status_for_game(account, game_id)
                         else:
-                            logging.warning(f"[BOT] Не удалось получить ID лота из заказа #{order.id}.")
-                    description_lower = order.description.lower()
+                            logging.warning(f"[{order.id}] ОШИБКА: Нет свободных аккаунтов для '{game_name}'.")
+                            lang = 'ru'
+                            response_text = localization.get_text('NO_ACCOUNTS_AVAILABLE_USER', lang)
+                            account.send_message(order.chat_id, response_text, chat_name=order.buyer_username)
+                            send_telegram_alert(f"НЕТ СВОБОДНЫХ АККАУНТОВ для '{game_name}' по заказу `#{order.id}`.")
 
-                    # Проверяем, содержит ли описание ключевые слова для аренды
-                    if not any(keyword in description_lower for keyword in RENTAL_KEYWORDS):
-                        logging.info(f"[BOT] Заказ #{order.id} проигнорирован (не является арендой).")
-                        continue
-
-                    all_games_in_db = db_handler.get_all_game_names()
-                    detected_game_name = next((game for game in all_games_in_db if game.lower() in description_lower),
-                                              None)
-                    if not detected_game_name and order.subcategory and order.subcategory.category:
-                        detected_game_name = order.subcategory.category.name
-
-                    if not detected_game_name:
-                        send_telegram_alert(f"Не удалось определить ИГРУ для заказа `#{order.id}`.")
-                        continue
-
-                    match = re.search(r'(\d+)\s*(час|часа|часов|ч|д|дней|день|day|days)', description_lower)
-                    if not match:
-                        send_telegram_alert(f"Не удалось определить СРОК для заказа `#{order.id}`.")
-                        continue
-
-                    time_value = int(match.group(1))
-                    time_unit = match.group(2)
-                    total_minutes = (time_value * 1440) if time_unit in ['д', 'дней', 'день', 'day', 'days'] else (
-                            time_value * 60)
-                    total_minutes *= order.amount
-
-                    rental_data = db_handler.rent_account(detected_game_name, order.buyer_username, total_minutes,
-                                                          order.chat_id)
-
-                    if rental_data:
-                        login, password, game_id = rental_data
-                        lang = 'ru'
-                        response_text = localization.get_text('RENTAL_SUCCESS', lang).format(
-                            game_name=detected_game_name, login=login, password=password,
-                            total_hours=round(total_minutes / 60, 1))
-                        account.send_message(order.chat_id, response_text, chat_name=order.buyer_username)
-                        update_offer_status_for_game(account, game_id)
-                    else:
-                        lang = 'ru'
-                        response_text = localization.get_text('NO_ACCOUNTS_AVAILABLE_USER', lang)
-                        account.send_message(order.chat_id, response_text, chat_name=order.buyer_username)
-                        send_telegram_alert(
-                            f"НЕТ СВОБОДНЫХ АККАУНТОВ для '{detected_game_name}' по заказу `#{order.id}`.")
+                    except Exception as e:
+                        logging.exception(f"[{order.id}] КРИТИЧЕСКАЯ ОШИБКА при обработке заказа.")
+                        send_telegram_alert(f"Критическая ошибка при обработке заказа #{order.id}:\n`{e}`")
 
                 # ИСПРАВЛЕНИЕ: Добавлен блок обработки команд из чата
                 elif event.type == EventTypes.NEW_MESSAGE:
                     message = event.message
-                    # Игнорируем свои же сообщения
                     if message.author_id == account.id or not message.text:
                         continue
 
