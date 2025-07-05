@@ -6,7 +6,6 @@ from queue import Queue
 import logging
 import threading
 from telegram import Update
-from telegram.ext import Updater, CommandHandler, CallbackContext
 import bot_handler
 import db_handler
 import config
@@ -14,12 +13,13 @@ import state_manager
 from utils import format_timedelta
 from datetime import datetime
 import shared # <-- Импортируем наш новый модуль
-
+import pytz
 
 # --- Глобальные переменные и функции отправки (без изменений) ---
 BOT_INSTANCE: Bot = None
 UPDATER_INSTANCE: Updater = None
 TG_SEND_QUEUE: Queue = None
+MOSCOW_TZ = pytz.timezone('Europe/Moscow')
 
 def send_telegram_notification(message: str):
     if TG_SEND_QUEUE:
@@ -117,18 +117,34 @@ def stats_command(update: Update, context: CallbackContext):
     except Exception as e:
         update.message.reply_text(f"❌ Ошибка: {e}")
 
+
 @admin_only
 def rentals_command(update: Update, context: CallbackContext):
+    """Показывает список активных аренд."""
     try:
-        rentals = db_handler.db_query("SELECT r.client_name, g.name, r.end_time, a.login FROM rentals r JOIN accounts a ON r.account_id = a.id JOIN games g ON a.game_id = g.id WHERE r.is_history = 0 ORDER BY r.end_time ASC", fetch="all")
+        rentals = db_handler.db_query("""
+                                      SELECT r.client_name, g.name, r.end_time, a.login
+                                      FROM rentals r
+                                               JOIN accounts a ON r.account_id = a.id
+                                               JOIN games g ON a.game_id = g.id
+                                      WHERE r.is_history = 0
+                                      ORDER BY r.end_time ASC
+                                      """, fetch="all")
         if not rentals: return update.message.reply_text("✅ Активных аренд нет.")
+
         message = "📋 <b>Список активных аренд:</b>\n\n"
+        # ---> ИСПРАВЛЕНИЕ: Используем единый часовой пояс <---
+        now_aware = datetime.now(MOSCOW_TZ)
         for client, game, end_time_iso, login in rentals:
-            remaining = datetime.fromisoformat(end_time_iso) - datetime.now()
+            # Превращаем время из базы в "осведомленное"
+            end_time_aware = datetime.fromisoformat(end_time_iso)
+            remaining = end_time_aware - now_aware
             message += f"👤 <i>{client}</i> ({game})\n   Аккаунт: <code>{login}</code>\n   Осталось: <b>{format_timedelta(remaining)}</b>\n\n"
+
         update.message.reply_text(message, parse_mode=ParseMode.HTML)
     except Exception as e:
-        update.message.reply_text(f"❌ Ошибка: {e}")
+        logging.error(f"Ошибка при получении списка аренд: {e}", exc_info=True)
+        update.message.reply_text(f"❌ Ошибка получения аренд: {e}")
 
 @admin_only
 def games_command(update: Update, context: CallbackContext):

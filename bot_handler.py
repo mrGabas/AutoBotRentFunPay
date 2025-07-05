@@ -16,6 +16,7 @@ import localization
 from utils import format_timedelta
 import state_manager
 
+MOSCOW_TZ = pytz.timezone('Europe/Moscow')
 # Глобальная переменная для поочередной проверки игр
 game_check_index = 0
 
@@ -147,39 +148,6 @@ def _force_deactivate_all_lots(account: Account):
     except Exception as e:
         send_telegram_alert(f"Критическая ошибка при принудительной деактивации лотов: {e}")
 
-def expired_rentals_checker(account: Account):
-    """Фоновый процесс проверки статусов."""
-    logging.info("[SYNC_CHECKER] Запущен объединенный проверщик статусов.")
-    game_ids = [g[0] for g in db_handler.db_query("SELECT id FROM games", fetch="all")]
-    game_check_index = 0
-    while True:
-        try:
-            if state_manager.force_deactivate_all_lots_requested:
-                _force_deactivate_all_lots(account)
-                state_manager.force_deactivate_all_lots_requested = False  # Сбрасываем флаг
-            # <<< ИСПРАВЛЕНИЕ: Убрана ошибочная проверка state_manager.deactivate_all_lots_requested >>>
-            if not state_manager.is_bot_enabled:
-                time.sleep(30)
-                continue
-
-            # Обработка истекших аренд
-            freed_game_ids = db_handler.check_and_process_expired_rentals()
-            for game_id in freed_game_ids:
-                update_offer_status_for_game(account, game_id)
-
-            # Поочередная проверка статусов лотов для отлова ручных изменений
-            if game_ids:
-                if game_check_index >= len(game_ids):
-                    game_check_index = 0
-
-                current_game_id = game_ids[game_check_index]
-                if current_game_id not in freed_game_ids:
-                    update_offer_status_for_game(account, current_game_id)
-
-                game_check_index += 1
-        except Exception as e:
-            logging.exception(f"Ошибка в процессе фоновой синхронизации статусов.")
-        time.sleep(60)
 
 def expired_rentals_checker(account: Account):
     """
@@ -191,6 +159,7 @@ def expired_rentals_checker(account: Account):
     5. Поочередно проверяет по одной игре для синхронизации статусов лотов.
     """
     logging.info("[CHECKER] Запущен объединенный проверщик статусов.")
+    # Получаем список ID игр один раз при запуске, чтобы не дергать БД постоянно
     game_ids = [g[0] for g in db_handler.db_query("SELECT id FROM games", fetch="all")]
     game_check_index = 0
 
@@ -199,8 +168,10 @@ def expired_rentals_checker(account: Account):
             # 1. Выполнение команды на принудительное отключение лотов
             if state_manager.force_deactivate_all_lots_requested:
                 _force_deactivate_all_lots(account)
+                # Сбрасываем флаг после выполнения, чтобы команда была одноразовой
                 state_manager.force_deactivate_all_lots_requested = False
 
+            # Если бот выключен, он не должен выполнять никакие фоновые задачи
             if not state_manager.is_bot_enabled:
                 time.sleep(30)
                 continue
@@ -220,7 +191,7 @@ def expired_rentals_checker(account: Account):
                     except Exception as e:
                         logging.error(
                             f"[CHECKER_REMINDER] Не удалось отправить напоминание для аренды {rental_id}: {e}")
-                    time.sleep(2)
+                    time.sleep(2)  # Небольшая задержка между отправкой сообщений
 
             # 3. Обработка истекших аренд
             freed_game_ids = db_handler.check_and_process_expired_rentals()
@@ -243,12 +214,15 @@ def expired_rentals_checker(account: Account):
                     game_check_index = 0
 
                 current_game_id = game_ids[game_check_index]
+                # Проверяем игру, только если для нее не было недавних изменений
                 if current_game_id not in freed_game_ids:
                     update_offer_status_for_game(account, current_game_id)
 
                 game_check_index += 1
         except Exception as e:
             logging.exception(f"Ошибка в процессе фоновой синхронизации статусов.")
+
+        # Пауза в 60 секунд перед следующей полной проверкой
         time.sleep(60)
 
 
